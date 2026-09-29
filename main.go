@@ -19,7 +19,6 @@ import (
 
 var (
 	useLegacyMode  bool   = false
-	enableColor  bool   = false
 	configFilePath string = "save-rule.json"
 	worldDirPath   string = "world"
 	outputPath     string = "."
@@ -67,7 +66,7 @@ func main() {
 
 	function, ok := cmdMap[flag.Arg(0)]
 	if !ok {
-		record.Error(errors.New("\""+flag.Arg(0)+"\" command not found"))
+		record.Error(errors.New("\"" + flag.Arg(0) + "\" command not found."))
 	}
 
 	function()
@@ -77,38 +76,36 @@ func help() {
 	helpOutput :=
 		`command:
 
-	run [option] [world_path] [output_path]
-		start the backup according to the config file
-		the first path is world path, default is "world"
-		second path is output path, default is "world-$time.zip"
+	run [option] [world_path] [output_path].
+		start the backup according to the config file.
+		the first path is world path, default is "world".
+		second path is output path, default is "world-$time.zip".
 
 	gencfg [output_file]
-		generate a default config file
+		generate a default config file.
 
 options:
 
 	-c <path>
-		specify the config file
+		specify the config file.
 
 	-color <bool>
-		enable color output, default is true
+		enable color output.
 `
 	fmt.Printf("%v", helpOutput)
 }
 
 func initProgram() {
-	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
-	flag.BoolFunc("l", "legacy world mode", func(s string) error {
+	flag.StringVar(&configFilePath, "c", configFilePath, "config file path.")
+	flag.BoolFunc("l", "legacy world mode.", func(s string) error {
 		useLegacyMode = true
 		return nil
 	})
-	flag.BoolVar(&enableColor, "color", true, "enable color output, default is true")
-
-	flag.Parse()
-
-	if enableColor {
+	flag.BoolFunc("color", "enable color output.", func(s string) error {
 		record.EnableColor = true
-	}
+		return nil
+	})
+	flag.Parse()
 }
 
 func repl() {
@@ -202,7 +199,7 @@ func run() {
 	if err != nil {
 		record.Error("create zip writer:", err)
 	}
-	
+
 	defer end(err)
 
 	if useLegacyMode {
@@ -304,8 +301,8 @@ func formatOutPutPath(archiveFilePath string) (string, error) {
 }
 
 func addSubfixBeforeExt(archiveFilePath string) (string, error) {
-	nameArr := strings.FieldsFunc(archiveFilePath, isExtKeyWord)	
-	for number := 1;; number++ {
+	nameArr := strings.FieldsFunc(archiveFilePath, isExtKeyWord)
+	for number := 1; ; number++ {
 		var subfix string = "-" + fmt.Sprint(number)
 		archiveFilePath = nameArr[0] + subfix
 		for _, ext := range nameArr[1:] {
