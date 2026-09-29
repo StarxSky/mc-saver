@@ -29,3 +29,7 @@ list=$(ls)
 for name in ${list[@]}; do
     tar -czvf ${name}.tar.gz ${name}
 done
+
+for name in ${list[@]}; do
+    rm -r ${name}
+done
