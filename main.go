@@ -313,13 +313,11 @@ func addSubfixBeforeExt(archiveFilePath string) (string, error) {
 			break
 		} else if err != nil && !os.IsNotExist(err) {
 			return "", err
-		} else if !stat.IsDir() || os.IsExist(err) {
+		} else if !stat.IsDir() || !os.IsNotExist(err) {
 			continue
 		}
 	}
-
 	return archiveFilePath, nil
-
 }
 
 func isExtKeyWord(char rune) bool {
