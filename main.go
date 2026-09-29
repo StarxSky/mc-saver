@@ -75,8 +75,7 @@ func main() {
 
 func help() {
 	helpOutput :=
-		`
-	command:
+		`command:
 
 	run [option] [world_path] [output_path]
 		start the backup according to the config file
@@ -86,11 +85,13 @@ func help() {
 	gencfg [output_file]
 		generate a default config file
 
-	options:
+options:
 
 	-c <path>
 		specify the config file
 
+	-color <bool>
+		enable color output, default is true
 `
 	fmt.Printf("%v", helpOutput)
 }
