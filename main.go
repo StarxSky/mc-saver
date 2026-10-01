@@ -1,17 +1,14 @@
 package main
 
 import (
-	"archive/zip"
 	"bufio"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"acovia.net/mc-saver/parse"
 	"acovia.net/record"
@@ -31,25 +28,54 @@ var (
 		"":       repl,
 	}
 
+	root *os.Root
+
 	defaultConfig string = `{
-	"dimension":{
-		"minecraft:overworld":{
-			"range":[
-				{ "from":[-1, -1], "to":[1, 1] }
+	"dimension": {
+		"minecraft:overworld": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
 			]
 		},
-		"minecraft:the_nether":{
-			"range":[
-				{ "from":[-1, -1], "to":[1, 1] }
+		"minecraft:the_nether": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
 			]
 		},
-		"minecraft:the_end":{
-			"range":[
-				{ "from":[-1, -1], "to":[1, 1] }
+		"minecraft:the_end": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
 			]
 		}
 	},
-	"file":[
+	"file": [
 		"level.dat",
 		"data",
 		"datapacks",
@@ -66,7 +92,7 @@ func main() {
 
 	function, ok := cmdMap[flag.Arg(0)]
 	if !ok {
-		record.Error(errors.New("\"" + flag.Arg(0) + "\" command not found."))
+		record.Error(errors.New("'" + flag.Arg(0) + "' command not found."))
 	}
 
 	function()
@@ -162,7 +188,7 @@ func gencfg() {
 	}
 
 	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
-		record.Error("generate config file:", "\"%v\"", "already exists", configFilePath)
+		record.Error("generate config file:", "'"+configFilePath+"'", "already exists", configFilePath)
 	}
 
 	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
@@ -174,6 +200,7 @@ func gencfg() {
 }
 
 func run() {
+	var err error
 
 	if len(flag.Arg(1)) != 0 {
 		if absPath, err := filepath.Abs(flag.Arg(1)); err != nil {
@@ -190,12 +217,12 @@ func run() {
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
 	outputPath = strings.ReplaceAll(outputPath, "\\", "/")
 
-	root, err := os.OpenRoot(worldDirPath)
+	root, err = os.OpenRoot(worldDirPath)
 	if err != nil {
 		record.Error("open world directory:", err)
 	}
 
-	zipWriter, _, end, err := createZipWriter()
+	zipWriter, _, end, err := newZipWriter()
 	if err != nil {
 		record.Error("create zip writer:", err)
 	}
@@ -215,159 +242,4 @@ func run() {
 			}
 		}
 	}
-}
-
-func createZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
-
-	archiveFilePath, err := formatOutPutPath(outputPath)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	file, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	if err = file.Chmod(0655); err != nil {
-		return nil, nil, nil, err
-	}
-
-	zipWriter := zip.NewWriter(file)
-
-	end := func(err error) error {
-
-		if err != nil {
-			os.Remove(file.Name())
-			return err
-		}
-
-		if err := os.Rename(file.Name(), archiveFilePath); err != nil {
-			os.Remove(file.Name())
-			return err
-		}
-
-		if err := zipWriter.Close(); err != nil {
-			os.Remove(file.Name())
-			return err
-		}
-
-		if err := file.Close(); err != nil {
-			os.Remove(file.Name())
-			return err
-		}
-
-		record.Info("backup completed successfully!")
-
-		return nil
-
-	}
-
-	return zipWriter, file, end, nil
-
-}
-
-func formatOutPutPath(archiveFilePath string) (string, error) {
-
-	outputFileInfo, err := os.Stat(outputPath)
-	switch true {
-
-	case os.IsNotExist(err):
-		err = os.MkdirAll(path.Dir(outputPath), 0755)
-		if err != nil {
-			return "", err
-		}
-		archiveFilePath = outputPath
-
-	case err != nil && !os.IsNotExist(err):
-		return "", err
-
-	case outputFileInfo.IsDir():
-		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
-		archiveFilePath = path.Join(outputPath, archiveFileName)
-		archiveFilePath, err = addSubfixBeforeExt(archiveFilePath)
-		if err != nil {
-			return "", err
-		}
-
-	default:
-		archiveFilePath, err = addSubfixBeforeExt(outputPath)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return archiveFilePath, nil
-}
-
-func addSubfixBeforeExt(archiveFilePath string) (string, error) {
-	nameArr := strings.FieldsFunc(archiveFilePath, isExtKeyWord)
-	for number := 1; ; number++ {
-		var subfix string = "-" + fmt.Sprint(number)
-		archiveFilePath = nameArr[0] + subfix
-		for _, ext := range nameArr[1:] {
-			archiveFilePath += "." + ext
-		}
-		stat, err := os.Stat(archiveFilePath)
-		if os.IsNotExist(err) {
-			break
-		} else if err != nil && !os.IsNotExist(err) {
-			return "", err
-		} else if !stat.IsDir() || !os.IsNotExist(err) {
-			continue
-		}
-	}
-	return archiveFilePath, nil
-}
-
-func isExtKeyWord(char rune) bool {
-	if char == rune("."[0]) {
-		return true
-	} else {
-		return false
-	}
-}
-
-func addFile(root *os.Root, filePath string, zipWriter *zip.Writer) error {
-
-	fileReader, err := root.Open(filePath)
-	if err != nil {
-		record.Warn("skip file:", err)
-		return nil
-	}
-	defer fileReader.Close()
-
-	fileInfo, err := root.Stat(filePath)
-	if err != nil {
-		return err
-	}
-
-	zipFileHeader, err := zip.FileInfoHeader(fileInfo)
-	if err != nil {
-		return err
-	}
-
-	headerName := path.Join(path.Base(root.Name()), filePath)
-
-	zipFileHeader.Name = headerName
-	zipFileHeader.Method = zip.Deflate
-
-	file, err := zipWriter.CreateHeader(zipFileHeader)
-
-	if err != nil {
-		return fmt.Errorf("(create file) %w", err)
-	}
-
-	if err = record.RunningInfo(func() error {
-		_, err = io.Copy(file, fileReader)
-		if err != nil {
-			return fmt.Errorf("(write file) %w", err)
-		}
-		return nil
-	}, "adding", headerName); err != nil {
-		return err
-	}
-
-	return nil
-
 }

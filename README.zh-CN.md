@@ -67,36 +67,62 @@ mc-saver [-c <配置文件>] [-l] <命令> [参数...]
 
 ```json
 {
-  "dimension": {
-    "minecraft:overworld": {
-      "range": [
-        { "from": [-1, -1], "to": [1, 1] }
-      ]
-    },
-    "minecraft:the_nether": {
-      "range": [
-        { "from": [-1, -1], "to": [1, 1] }
-      ]
-    },
-    "minecraft:the_end": {
-      "range": [
-        { "from": [-1, -1], "to": [1, 1] }
-      ]
-    }
-  },
-  "file": [
-    "level.dat",
-    "data",
-    "datapacks",
-    "players"
-  ]
+	"dimension": {
+		"minecraft:overworld": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			]
+		},
+		"minecraft:the_nether": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			]
+		},
+		"minecraft:the_end": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			]
+		}
+	},
+	"file": [
+		"level.dat",
+		"data",
+		"datapacks",
+		"players"
+	]
 }
 ```
 
 ### `dimension`
 
 以维度的命名空间 ID（`<命名空间>:<ID>`）为键。每个维度的规则支持两种选择方式：
-
 
 - `range` — 矩形区域数组。每一项是 `{ "from": [x, z], "to": [x, z] }`，坐标落在矩形内（含边界）的所有区域文件都会被备份。
 
@@ -105,7 +131,16 @@ mc-saver [-c <配置文件>] [-l] <命令> [参数...]
   "dimension": {
     "minecraft:overworld": {
       "range": [
-        { "from": [-1, -1], "to": [1, 1] }
+        {
+          "from": {
+            "x": -1,
+            "y": -1
+          },
+          "to": {
+            "x": 0,
+            "y": 0
+          }
+        }
       ]
     }
   }
@@ -119,7 +154,10 @@ mc-saver [-c <配置文件>] [-l] <命令> [参数...]
   "dimension": {
     "minecraft:overworld": {
       "simple": [
-        [3, 3]
+        {
+          "x": 0,
+          "y": 0
+        }
       ]
     }
   }
@@ -132,16 +170,27 @@ mc-saver [-c <配置文件>] [-l] <命令> [参数...]
   "dimension": {
     "minecraft:overworld": {
       "range": [
-        { "from": [-1, -1], "to": [1, 1] }
+        {
+          "from": {
+            "x": -1,
+            "y": -1
+          },
+          "to": {
+            "x": 0,
+            "y": 0
+          }
+        }
       ],
       "simple": [
-        [3, 3]
+        {
+          "x": 0,
+          "y": 0
+        }
       ]
     }
   }
 }
 ```
-
 
 区域坐标与 Minecraft 的区域文件命名一致（`r.<x>.<z>.mca`，一个区域覆盖 512×512 方块）。
 

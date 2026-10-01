@@ -12,6 +12,13 @@ import (
 	"strings"
 )
 
+type RangeIterator struct {
+	FromX int
+	FromY int
+	ToX int
+	ToY int
+}
+
 type RootRule struct {
 	Dimension map[string]DimensionRule `json:"dimension"`
 	File      []string                 `json:"file"`
@@ -19,12 +26,17 @@ type RootRule struct {
 
 type DimensionRule struct {
 	Range  []RangeRule `json:"range"`
-	Simple [][2]int    `json:"simple"`
+	Simple []Coordinate    `json:"simple"`
 }
 
 type RangeRule struct {
-	From [2]int `json:"from"`
-	To   [2]int `json:"to"`
+	From Coordinate `json:"from"`
+	To   Coordinate `json:"to"`
+}
+
+type Coordinate struct {
+	X int `json:"x"`
+	Y int `json:"y"`
 }
 
 var (
@@ -34,6 +46,19 @@ var (
 		"poi",
 	}
 )
+
+type addFile func(fileName string, zipWriter *zip.Writer) error
+
+func (iterator RangeIterator) run(function func(x int, y int) error) error {
+	for x := iterator.FromX; x <= iterator.ToX; x += 1 {
+		for y := iterator.FromY; y <= iterator.ToY; y += 1 {
+			if err := function(x, y); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
 func SaveAllFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
 
@@ -48,8 +73,6 @@ func SaveAllFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFil
 	return nil
 }
 
-type addFile func(root *os.Root, fileName string, zipWriter *zip.Writer) error
-
 func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
 
 	rootRule, err := LoadRootSaveRule(configFile)
@@ -59,9 +82,9 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 
 	for namespaceID, dimensionRule := range rootRule.Dimension {
 
-		namespaceAndID := strings.FieldsFunc(namespaceID, isNamespaceKeyWord)
+		namespaceAndID := strings.FieldsFunc(namespaceID, IsNamespaceKeyWord)
 		if len(namespaceAndID) != 2 {
-			return errors.New("parse namespaceID: invalid namespace ID \"" + namespaceID + "\"")
+			return errors.New("parse namespaceID: invalid namespace ID '" + namespaceID + "'")
 		}
 
 		namespace, dimensionID := namespaceAndID[0], namespaceAndID[1]
@@ -75,22 +98,25 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 
 		for _, rangeRule := range dimensionRule.Range {
 			for _, regionDataDir := range rootFile {
-				for x := rangeRule.From[0]; x <= rangeRule.To[0]; x += 1 {
-					for y := rangeRule.From[1]; y <= rangeRule.To[1]; y += 1 {
-						regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
-						err := addFile(root, regionFileName, zipWriter)
-						if err != nil {
-							return err
-						}
+				iterator := NewRangeIterator(rangeRule.From.X, rangeRule.From.Y, rangeRule.To.X, rangeRule.To.Y)
+				err := iterator.run(func(x int, y int) error {
+					regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
+					err := addFile(regionFileName, zipWriter)
+					if err != nil {
+						return err
 					}
+					return nil
+				})
+				if err != nil {
+					return err
 				}
 			}
 		}
 
 		for _, regionDataDir := range rootFile {
 			for _, simpleRule := range dimensionRule.Simple {
-				regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule[0], simpleRule[1])
-				err := addFile(root, regionFileName, zipWriter)
+				regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule.X, simpleRule.Y)
+				err := addFile(regionFileName, zipWriter)
 				if err != nil {
 					return err
 				}
@@ -115,7 +141,7 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 				dataFileName := path.Join(dimensionDataDirName, subFilePath)
 
 				if !d.IsDir() {
-					err := addFile(root, dataFileName, zipWriter)
+					err := addFile(dataFileName, zipWriter)
 					if err != nil {
 						return fmt.Errorf("%w", err)
 					}
@@ -148,7 +174,7 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 		switch fileStat.IsDir() {
 
 		case false:
-			err := addFile(root, file, zipWriter)
+			err := addFile(file, zipWriter)
 			if err != nil {
 				return err
 			}
@@ -167,7 +193,7 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 				fullFilePath := path.Join(file, subFilePath)
 
 				if !d.IsDir() {
-					err := addFile(root, fullFilePath, zipWriter)
+					err := addFile(fullFilePath, zipWriter)
 					if err != nil {
 						return err
 					}
@@ -183,7 +209,7 @@ func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, a
 	return nil
 }
 
-func isNamespaceKeyWord(char rune) bool {
+func IsNamespaceKeyWord(char rune) bool {
 	if char == rune(":"[0]) {
 		return true
 	} else {
@@ -191,7 +217,7 @@ func isNamespaceKeyWord(char rune) bool {
 	}
 }
 
-func formatRegionFilePath(dimensionRootDirPath string, regionDataDir string, x int, y int) string {
+func FormatRegionFilePath(dimensionRootDirPath string, regionDataDir string, x int, y int) string {
 	regionFileName := "r." + strconv.FormatInt(int64(x), 10) + "." + strconv.FormatInt(int64(y), 10) + ".mca"
 	regionFilePath := path.Join(dimensionRootDirPath, regionDataDir, regionFileName)
 	return regionFilePath
@@ -212,4 +238,17 @@ func LoadRootSaveRule(configFile string) (RootRule, error) {
 
 	return rootRule, nil
 
+}
+
+func invertedIntValue(a int, b int) (int, int) {
+	return b, a
+}
+
+func NewRangeIterator(fromX int, fromY int, toX int, toY int) RangeIterator {
+	return RangeIterator{
+		FromX: fromX,
+		FromY: fromY,
+		ToX: toX,
+		ToY: toY,
+	}
 }

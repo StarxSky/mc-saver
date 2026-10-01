@@ -1,22 +1,49 @@
 {
-	"dimension":{
-		"minecraft:overworld":{
-			"range":[
-				{ "from":[-1, -1], "to":[1, 1] }
+	"dimension": {
+		"minecraft:overworld": {
+			"range": [
+				{
+					"from" :{
+						"x" :-1,
+						"y" :-1
+					},
+					"to" :{
+						"x" :0,
+						"y" :0
+					}
+				}
 			]
 		},
-		"minecraft:the_nether":{
-			"range":[
-				{ "from":[-1, -1], "to":[1, 1] }
+		"minecraft:the_nether": {
+			"range": [
+				{
+					"from" :{
+						"x" :-1,
+						"y" :-1
+					},
+					"to" :{
+						"x" :0,
+						"y" :0
+					}
+				}
 			]
 		},
-		"minecraft:the_end":{
-			"range":[
-				{ "from":[-1, -1], "to":[1, 1] }
+		"minecraft:the_end": {
+			"range": [
+				{
+					"from" :{
+						"x" :-1,
+						"y" :-1
+					},
+					"to" :{
+						"x" :0,
+						"y" :0
+					}
+				}
 			]
 		}
 	},
-	"file":[
+	"file": [
 		"level.dat",
 		"data",
 		"datapacks",

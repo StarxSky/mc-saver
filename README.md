@@ -67,29 +67,56 @@ The rule file is JSON with two top-level fields: `dimension` and `file`.
 
 ```json
 {
-  "dimension": {
-    "minecraft:overworld": {
-      "range": [
-        { "from": [-1, -1], "to": [1, 1] }
-      ]
-    },
-    "minecraft:the_nether": {
-      "range": [
-        { "from": [-1, -1], "to": [1, 1] }
-      ]
-    },
-    "minecraft:the_end": {
-      "range": [
-        { "from": [-1, -1], "to": [1, 1] }
-      ]
-    }
-  },
-  "file": [
-    "level.dat",
-    "data",
-    "datapacks",
-    "players"
-  ]
+	"dimension": {
+		"minecraft:overworld": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			]
+		},
+		"minecraft:the_nether": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			]
+		},
+		"minecraft:the_end": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			]
+		}
+	},
+	"file": [
+		"level.dat",
+		"data",
+		"datapacks",
+		"players"
+	]
 }
 ```
 
@@ -104,7 +131,16 @@ Keyed by dimension namespace ID (`<namespace>:<id>`). Each dimension rule suppor
   "dimension": {
     "minecraft:overworld": {
       "range": [
-        { "from": [-1, -1], "to": [1, 1] }
+        {
+          "from": {
+            "x": -1,
+            "y": -1
+          },
+          "to": {
+            "x": 0,
+            "y": 0
+          }
+        }
       ]
     }
   }
@@ -118,7 +154,10 @@ Keyed by dimension namespace ID (`<namespace>:<id>`). Each dimension rule suppor
   "dimension": {
     "minecraft:overworld": {
       "simple": [
-        [3, 3]
+        {
+          "x": 0,
+          "y": 0
+        }
       ]
     }
   }
@@ -132,10 +171,22 @@ Mix `range` and `simple` rules.
   "dimension": {
     "minecraft:overworld": {
       "range": [
-        { "from": [-1, -1], "to": [1, 1] }
+        {
+          "from": {
+            "x": -1,
+            "y": -1
+          },
+          "to": {
+            "x": 0,
+            "y": 0
+          }
+        }
       ],
       "simple": [
-        [3, 3]
+        {
+          "x": 0,
+          "y": 0
+        }
       ]
     }
   }

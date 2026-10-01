@@ -32,7 +32,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 
 	for namespaceID, dimensionRule := range rootRule.Dimension {
 
-		namespaceAndID := strings.FieldsFunc(namespaceID, isNamespaceKeyWord)
+		namespaceAndID := strings.FieldsFunc(namespaceID, IsNamespaceKeyWord)
 		if len(namespaceAndID) != 2 {
 			return errors.New("(parse namespaceID) invalid namespace ID \"" + namespaceID + "\"")
 		}
@@ -60,22 +60,25 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 
 		for _, rangeRule := range dimensionRule.Range {
 			for _, regionDataDir := range rootFile {
-				for x := rangeRule.From[0]; x <= rangeRule.To[0]; x += 1 {
-					for y := rangeRule.From[1]; y <= rangeRule.To[1]; y += 1 {
-						regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
-						err := addFile(root, regionFileName, zipWriter)
-						if err != nil {
-							return err
-						}
+				iterator := NewRangeIterator(rangeRule.From.X, rangeRule.From.Y, rangeRule.To.X, rangeRule.To.Y)
+				err := iterator.run(func(x int, y int) error {
+					regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
+					err := addFile(regionFileName, zipWriter)
+					if err != nil {
+						return err
 					}
+					return nil
+				})
+				if err != nil {
+					return err
 				}
 			}
 		}
 
 		for _, regionDataDir := range rootFile {
 			for _, simpleRule := range dimensionRule.Simple {
-				regionFileName := formatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule[0], simpleRule[1])
-				err := addFile(root, regionFileName, zipWriter)
+				regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule.X, simpleRule.Y)
+				err := addFile(regionFileName, zipWriter)
 				if err != nil {
 					return err
 				}
@@ -100,7 +103,7 @@ func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Write
 				dataFileName := path.Join(dimensionDataDirName, subFilePath)
 
 				if !d.IsDir() {
-					err := addFile(root, dataFileName, zipWriter)
+					err := addFile(dataFileName, zipWriter)
 					if err != nil {
 						return fmt.Errorf("%w", err)
 					}
