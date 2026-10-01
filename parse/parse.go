@@ -19,17 +19,17 @@ type RangeIterator struct {
 	ToY int
 }
 
-type RootRule struct {
-	Dimension map[string]DimensionRule `json:"dimension"`
+type Config struct {
+	Dimension map[string]DimensionConfig `json:"dimension"`
 	File      []string                 `json:"file"`
 }
 
-type DimensionRule struct {
-	Range  []RangeRule `json:"range"`
+type DimensionConfig struct {
+	Range  []RangeConfig `json:"range"`
 	Simple []Coordinate    `json:"simple"`
 }
 
-type RangeRule struct {
+type RangeConfig struct {
 	From Coordinate `json:"from"`
 	To   Coordinate `json:"to"`
 }
@@ -50,6 +50,12 @@ var (
 type addFile func(fileName string, zipWriter *zip.Writer) error
 
 func (iterator RangeIterator) run(function func(x int, y int) error) error {
+	if iterator.FromX > iterator.ToX {
+		invertedIntValue(&iterator.FromX, &iterator.ToX)
+	}
+	if iterator.FromY > iterator.ToY {
+		invertedIntValue(&iterator.FromY, &iterator.ToY)
+	}
 	for x := iterator.FromX; x <= iterator.ToX; x += 1 {
 		for y := iterator.FromY; y <= iterator.ToY; y += 1 {
 			if err := function(x, y); err != nil {
@@ -223,25 +229,27 @@ func FormatRegionFilePath(dimensionRootDirPath string, regionDataDir string, x i
 	return regionFilePath
 }
 
-func LoadRootSaveRule(configFile string) (RootRule, error) {
+func LoadRootSaveRule(configFile string) (Config, error) {
 
 	jsonData, err := os.ReadFile(configFile)
 	if err != nil {
-		return RootRule{}, err
+		return Config{}, fmt.Errorf("read config file: %v", err)
 	}
 
-	var rootRule RootRule
+	var rootRule Config
 	err = json.Unmarshal(jsonData, &rootRule)
 	if err != nil {
-		return RootRule{}, err
+		return Config{}, fmt.Errorf("decode json data: %v", err)
 	}
 
 	return rootRule, nil
 
 }
 
-func invertedIntValue(a int, b int) (int, int) {
-	return b, a
+func invertedIntValue(a *int, b *int) {
+	*a, *b = func(a int, b int) (int, int) {
+		return b, a
+	}(*a, *b)
 }
 
 func NewRangeIterator(fromX int, fromY int, toX int, toY int) RangeIterator {

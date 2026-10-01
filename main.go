@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -21,67 +22,45 @@ var (
 	outputPath     string = "."
 
 	cmdMap map[string]func() = map[string]func(){
-		"run":    run,
-		"gencfg": gencfg,
-		"help":   help,
-		"repl":   repl,
-		"":       repl,
+		"run":     run,
+		"gencfg":  gencfg,
+		"help":    help,
+		"repl":    repl,
+		"add-dms": addDms,
+		"del-dms": delDms,
+		"":        repl,
 	}
 
 	root *os.Root
 
-	defaultConfig string = `{
-	"dimension": {
-		"minecraft:overworld": {
-			"range": [
-				{
-					"from": {
-						"x": -1,
-						"y": -1
-					},
-					"to": {
-						"x": 0,
-						"y": 0
-					}
-				}
-			]
+	defaultDimensionConfig = parse.DimensionConfig{
+		Range: []parse.RangeConfig{
+			{
+				From: parse.Coordinate{
+					X: -1,
+					Y: -1,
+				},
+				To: parse.Coordinate{
+					X: 0,
+					Y: 0,
+				},
+			},
 		},
-		"minecraft:the_nether": {
-			"range": [
-				{
-					"from": {
-						"x": -1,
-						"y": -1
-					},
-					"to": {
-						"x": 0,
-						"y": 0
-					}
-				}
-			]
+	}
+
+	defaultConfig = parse.Config{
+		Dimension: map[string]parse.DimensionConfig{
+			"minecraft:overworld":  defaultDimensionConfig,
+			"minecraft:the_nether": defaultDimensionConfig,
+			"minecraft:the_end":    defaultDimensionConfig,
 		},
-		"minecraft:the_end": {
-			"range": [
-				{
-					"from": {
-						"x": -1,
-						"y": -1
-					},
-					"to": {
-						"x": 0,
-						"y": 0
-					}
-				}
-			]
-		}
-	},
-	"file": [
-		"level.dat",
-		"data",
-		"datapacks",
-		"players"
-	]
-}`
+		File: []string{
+			"level.dat",
+			"data",
+			"datapacks",
+			"players",
+		},
+	}
 )
 
 func main() {
@@ -137,24 +116,7 @@ func initProgram() {
 func repl() {
 	scanner := bufio.NewScanner(os.Stdin)
 	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
-		fmt.Printf("generate a default config file? (y/n): ")
-		if scanner.Scan() {
-			if input := scanner.Text(); input != "y" && input != "Y" && len(input) != 0 {
-				os.Exit(0)
-			}
-			err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
-			if err != nil {
-				record.Error(err)
-			}
-			record.Info("created default config file:", configFilePath)
-			fmt.Printf("continue with default config file? (y/n): ")
-			if scanner.Scan() {
-				input := scanner.Text()
-				if input != "y" && input != "Y" && len(input) != 0 {
-					os.Exit(0)
-				}
-			}
-		}
+		record.Error("config file not found, please run 'mc-saver gencfg' to generate a default config.")
 	} else if !os.IsNotExist(err) && err != nil {
 		record.Error("verify config file:", err)
 	}
@@ -191,7 +153,12 @@ func gencfg() {
 		record.Error("generate config file:", "'"+configFilePath+"'", "already exists", configFilePath)
 	}
 
-	err := os.WriteFile(configFilePath, []byte(defaultConfig), 0644)
+	jsonData, err := json.MarshalIndent(defaultConfig, "", "	")
+	if err != nil {
+		record.Error("load default config struct:", err)
+	}
+
+	err = os.WriteFile(configFilePath, jsonData, 0644)
 	if err != nil {
 		record.Error(err)
 	}
@@ -204,7 +171,7 @@ func run() {
 
 	if len(flag.Arg(1)) != 0 {
 		if absPath, err := filepath.Abs(flag.Arg(1)); err != nil {
-			record.Error("check world directory:", err)
+			record.Error("load abs path:", err)
 		} else {
 			worldDirPath = absPath
 		}
@@ -222,12 +189,12 @@ func run() {
 		record.Error("open world directory:", err)
 	}
 
-	zipWriter, _, end, err := newZipWriter()
+	zipWriter, _, end, err := initZipWriter()
 	if err != nil {
-		record.Error("create zip writer:", err)
+		record.Error("init zip writer:", err)
 	}
 
-	defer end(err)
+	defer end(nil)
 
 	if useLegacyMode {
 		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
@@ -241,5 +208,60 @@ func run() {
 				record.Error(err)
 			}
 		}
+	}
+}
+
+func addDms() {
+	var dimensionNamespaceID string
+
+	if len(flag.Arg(1)) != 0 {
+		dimensionNamespaceID = flag.Arg(1)
+	} else {
+		record.Error("dimension namespace id is missing.")
+	}
+
+	config, err := parse.LoadRootSaveRule(configFilePath)
+	if err != nil {
+		record.Error("load config:", err)
+	}
+
+	config.Dimension[dimensionNamespaceID] = defaultDimensionConfig
+
+	jsonData, err := json.MarshalIndent(config, "", "	")
+	if err != nil {
+		record.Error("encode json data:", err)
+	}
+
+	err = os.WriteFile(configFilePath, jsonData, 0644)
+	if err != nil {
+		record.Error(err)
+	}
+}
+
+
+func delDms() {
+	var dimensionNamespaceID string
+
+	if len(flag.Arg(1)) != 0 {
+		dimensionNamespaceID = flag.Arg(1)
+	} else {
+		record.Error("dimension namespace id is missing.")
+	}
+
+	config, err := parse.LoadRootSaveRule(configFilePath)
+	if err != nil {
+		record.Error("load config:", err)
+	}
+
+	delete(config.Dimension, dimensionNamespaceID)
+
+	jsonData, err := json.MarshalIndent(config, "", "	")
+	if err != nil {
+		record.Error("encode json data:", err)
+	}
+
+	err = os.WriteFile(configFilePath, jsonData, 0644)
+	if err != nil {
+		record.Error(err)
 	}
 }

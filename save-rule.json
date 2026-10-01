@@ -3,44 +3,47 @@
 		"minecraft:overworld": {
 			"range": [
 				{
-					"from" :{
-						"x" :-1,
-						"y" :-1
+					"from": {
+						"x": -1,
+						"y": -1
 					},
-					"to" :{
-						"x" :0,
-						"y" :0
+					"to": {
+						"x": 0,
+						"y": 0
 					}
 				}
-			]
-		},
-		"minecraft:the_nether": {
-			"range": [
-				{
-					"from" :{
-						"x" :-1,
-						"y" :-1
-					},
-					"to" :{
-						"x" :0,
-						"y" :0
-					}
-				}
-			]
+			],
+			"simple": null
 		},
 		"minecraft:the_end": {
 			"range": [
 				{
-					"from" :{
-						"x" :-1,
-						"y" :-1
+					"from": {
+						"x": -1,
+						"y": -1
 					},
-					"to" :{
-						"x" :0,
-						"y" :0
+					"to": {
+						"x": 0,
+						"y": 0
 					}
 				}
-			]
+			],
+			"simple": null
+		},
+		"minecraft:the_nether": {
+			"range": [
+				{
+					"from": {
+						"x": -1,
+						"y": -1
+					},
+					"to": {
+						"x": 0,
+						"y": 0
+					}
+				}
+			],
+			"simple": null
 		}
 	},
 	"file": [

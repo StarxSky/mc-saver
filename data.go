@@ -6,7 +6,6 @@ import (
 	"path"
 	"strings"
 	"time"
-
 )
 
 func formatOutPutPath(archiveFilePath string) (string, error) {
@@ -17,25 +16,25 @@ func formatOutPutPath(archiveFilePath string) (string, error) {
 	case os.IsNotExist(err):
 		err = os.MkdirAll(path.Dir(outputPath), 0755)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("create output directory: %v", err)
 		}
 		archiveFilePath = outputPath
 
 	case err != nil && !os.IsNotExist(err):
-		return "", err
+		return "", fmt.Errorf("read file info: %v", err)
 
 	case outputFileInfo.IsDir():
 		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
 		archiveFilePath = path.Join(outputPath, archiveFileName)
 		archiveFilePath, err = addSubfixBeforeExt(archiveFilePath)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("add subfix: %v", err)
 		}
 
 	default:
 		archiveFilePath, err = addSubfixBeforeExt(outputPath)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("add subfix: %v", err)
 		}
 	}
 
@@ -54,7 +53,7 @@ func addSubfixBeforeExt(archiveFilePath string) (string, error) {
 		if os.IsNotExist(err) {
 			break
 		} else if err != nil && !os.IsNotExist(err) {
-			return "", err
+			return "", fmt.Errorf("read file info: %v", err)
 		} else if !stat.IsDir() || !os.IsNotExist(err) {
 			continue
 		}
