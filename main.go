@@ -11,11 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"acovia.net/mc-saver/parse"
+	"acovia.net/minecraft/saver"
 	"acovia.net/record"
 )
 
 var (
+	arg []string
+
 	useLegacyMode  bool   = false
 	configFilePath string = "save-rule.json"
 	worldDirPath   string = "world"
@@ -33,14 +35,14 @@ var (
 
 	root *os.Root
 
-	defaultDimensionConfig = parse.DimensionConfig{
-		Range: []parse.RangeConfig{
+	defaultDimensionConfig = saver.DimensionConfig{
+		Range: []saver.RangeConfig{
 			{
-				From: parse.Coordinate{
+				From: saver.Coordinate{
 					X: -1,
 					Y: -1,
 				},
-				To: parse.Coordinate{
+				To: saver.Coordinate{
 					X: 0,
 					Y: 0,
 				},
@@ -48,8 +50,8 @@ var (
 		},
 	}
 
-	defaultConfig = parse.Config{
-		Dimension: map[string]parse.DimensionConfig{
+	defaultConfig = saver.Config{
+		Dimension: map[string]saver.DimensionConfig{
 			"minecraft:overworld":  defaultDimensionConfig,
 			"minecraft:the_nether": defaultDimensionConfig,
 			"minecraft:the_end":    defaultDimensionConfig,
@@ -64,14 +66,14 @@ var (
 )
 
 func main() {
-
 	initProgram()
+	arg = flag.Args()
 
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
 
-	function, ok := cmdMap[flag.Arg(0)]
+	function, ok := cmdMap[arg[0]]
 	if !ok {
-		record.Error(errors.New("'" + flag.Arg(0) + "' command not found."))
+		record.Error(errors.New("'" + arg[0] + "' command not found."))
 	}
 
 	function()
@@ -145,8 +147,18 @@ func repl() {
 }
 
 func gencfg() {
-	if flag.Arg(1) != "" {
-		configFilePath = flag.Arg(1)
+	if len(arg) > 1 {
+		configFilePath = arg[1]
+	}
+
+	if useLegacyMode {
+		defaultConfig.File = []string{
+			"level.dat",
+			"data",
+			"datapacks",
+			"advancements",
+			"playerdata",
+		}
 	}
 
 	if _, err := os.Stat(configFilePath); !os.IsNotExist(err) {
@@ -169,15 +181,15 @@ func gencfg() {
 func run() {
 	var err error
 
-	if len(flag.Arg(1)) != 0 {
-		if absPath, err := filepath.Abs(flag.Arg(1)); err != nil {
+	if len(arg) > 1 {
+		if absPath, err := filepath.Abs(arg[1]); err != nil {
 			record.Error("load abs path:", err)
 		} else {
 			worldDirPath = absPath
 		}
 	}
 
-	if len(flag.Arg(2)) != 0 {
+	if len(arg) > 2 {
 		outputPath = path.Clean(flag.Arg(2))
 	}
 
@@ -197,13 +209,13 @@ func run() {
 	defer end(nil)
 
 	if useLegacyMode {
-		if err := parse.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
+		if err := saver.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
 			}
 		}
 	} else {
-		if err := parse.SaveAllFile(root, configFilePath, zipWriter, addFile); err != nil {
+		if err := saver.SaveAllFile(root, configFilePath, zipWriter, addFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
 			}
@@ -214,13 +226,13 @@ func run() {
 func addDms() {
 	var dimensionNamespaceID string
 
-	if len(flag.Arg(1)) != 0 {
-		dimensionNamespaceID = flag.Arg(1)
+	if len(arg) > 1 {
+		dimensionNamespaceID = arg[1]
 	} else {
 		record.Error("dimension namespace id is missing.")
 	}
 
-	config, err := parse.LoadRootSaveRule(configFilePath)
+	config, err := saver.LoadConfig(configFilePath)
 	if err != nil {
 		record.Error("load config:", err)
 	}
@@ -238,17 +250,16 @@ func addDms() {
 	}
 }
 
-
 func delDms() {
 	var dimensionNamespaceID string
 
-	if len(flag.Arg(1)) != 0 {
-		dimensionNamespaceID = flag.Arg(1)
+	if len(arg) > 1 {
+		dimensionNamespaceID = arg[1]
 	} else {
 		record.Error("dimension namespace id is missing.")
 	}
 
-	config, err := parse.LoadRootSaveRule(configFilePath)
+	config, err := saver.LoadConfig(configFilePath)
 	if err != nil {
 		record.Error("load config:", err)
 	}

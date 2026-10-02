@@ -1,4 +1,4 @@
-package parse
+package saver
 
 import (
 	"archive/zip"
@@ -10,22 +10,22 @@ import (
 	"strings"
 )
 
-func SaveOldAllFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
+func SaveOldAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) (err error) {
 
-	if err := SaveOldDimensionFile(root, configFile, zipWriter, addFile); err != nil {
+	if err := SaveOldDimensionFile(root, configFilePath, zipWriter, addFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(root, configFile, zipWriter, addFile); err != nil {
+	if err := SaveRootDataFile(root, configFilePath, zipWriter, addFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func SaveOldDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) error {
 
-	rootRule, err := LoadRootSaveRule(configFile)
+	rootRule, err := LoadConfig(configFilePath)
 	if err != nil {
 		return err
 	}

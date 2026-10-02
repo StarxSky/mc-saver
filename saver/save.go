@@ -1,4 +1,4 @@
-package parse
+package saver
 
 import (
 	"archive/zip"
@@ -15,18 +15,18 @@ import (
 type RangeIterator struct {
 	FromX int
 	FromY int
-	ToX int
-	ToY int
+	ToX   int
+	ToY   int
 }
 
 type Config struct {
 	Dimension map[string]DimensionConfig `json:"dimension"`
-	File      []string                 `json:"file"`
+	File      []string                   `json:"file"`
 }
 
 type DimensionConfig struct {
 	Range  []RangeConfig `json:"range"`
-	Simple []Coordinate    `json:"simple"`
+	Simple []Coordinate  `json:"simple"`
 }
 
 type RangeConfig struct {
@@ -66,22 +66,22 @@ func (iterator RangeIterator) run(function func(x int, y int) error) error {
 	return nil
 }
 
-func SaveAllFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) (err error) {
+func SaveAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) (err error) {
 
-	if err := SaveDimensionFile(root, configFile, zipWriter, addFile); err != nil {
+	if err := SaveDimensionFile(root, configFilePath, zipWriter, addFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(root, configFile, zipWriter, addFile); err != nil {
+	if err := SaveRootDataFile(root, configFilePath, zipWriter, addFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) error {
 
-	rootRule, err := LoadRootSaveRule(configFile)
+	rootRule, err := LoadConfig(configFilePath)
 	if err != nil {
 		return err
 	}
@@ -163,9 +163,9 @@ func SaveDimensionFile(root *os.Root, configFile string, zipWriter *zip.Writer, 
 	return nil
 }
 
-func SaveRootDataFile(root *os.Root, configFile string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveRootDataFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) error {
 
-	rootRule, err := LoadRootSaveRule(configFile)
+	rootRule, err := LoadConfig(configFilePath)
 	if err != nil {
 		return err
 	}
@@ -229,9 +229,9 @@ func FormatRegionFilePath(dimensionRootDirPath string, regionDataDir string, x i
 	return regionFilePath
 }
 
-func LoadRootSaveRule(configFile string) (Config, error) {
+func LoadConfig(configFilePath string) (Config, error) {
 
-	jsonData, err := os.ReadFile(configFile)
+	jsonData, err := os.ReadFile(configFilePath)
 	if err != nil {
 		return Config{}, fmt.Errorf("read config file: %v", err)
 	}
@@ -256,7 +256,7 @@ func NewRangeIterator(fromX int, fromY int, toX int, toY int) RangeIterator {
 	return RangeIterator{
 		FromX: fromX,
 		FromY: fromY,
-		ToX: toX,
-		ToY: toY,
+		ToX:   toX,
+		ToY:   toY,
 	}
 }
