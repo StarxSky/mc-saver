@@ -9,6 +9,7 @@ A Minecraft world backup tool written in Go. Based on a JSON rule file, it packs
 - **Selective backups** — back up only dimensions and chunks that you care about instead of the whole world, so archives are smaller and faster.
 - **Per-dimension configuration** — selectively configure and back up the overworld (`overworld`), the Nether (`the_nether`), the End (`the_end`), and any custom dimension.
 - **Flexible region selection** — use rectangular `range` rules, or `simple` rules to specify individual region coordinates.
+- **Config management from the command line** — add, delete and list dimensions, `range`/`simple` rules and `file` rules without editing JSON by hand.
 
 ## Download
 
@@ -17,8 +18,8 @@ Download the corresponding binary executable from the [Releases](https://github.
 ## Example usage
 
 ```bash
-./mc-saver
-# Starts a wizard that guides you through the backup; equivalent to the repl subcommand
+./mc-saver repl
+# Starts a wizard that guides you through the backup
 
 ./mc-saver gencfg
 # Generates a default config file - save-rule.json
@@ -33,37 +34,72 @@ Download the corresponding binary executable from the [Releases](https://github.
 # Starts a backup with config file config.json, world directory level, and output file level.zip
 
 ./mc-saver -l run
-# Starts a backup with default values in legacy mode; worlds from before 1.21.11 should use this mode:
+# Starts a backup with default values in legacy mode; worlds from before 1.21.11 should use this mode
+
+./mc-saver add-dms minecraft:custom
+# Adds a dimension with the default range rule to the config file
+
+./mc-saver add-range minecraft:custom -2 -2 2 2
+# Adds a range rule (from region -2,-2 to region 2,2) to minecraft:custom
+
+./mc-saver add-simple minecraft:custom 8 8
+# Adds the single region 8,8 to minecraft:custom
+
+./mc-saver list-dms
+# Lists the dimension ids stored in the config file
 ```
 
 ### Syntax
 
 ```
-mc-saver [-c <config file>] [-l] <command> [args...]
+mc-saver [-c <config file>] [-l] [-color] <command> [args...]
 ```
 
 Flags must be placed before the subcommand; anything after the subcommand is treated as a positional argument.
 
 ### Commands
 
-| Command | Defaults | Description |
-| --- | --- | --- |
-| `run` | `world`, `.` | Back up a world. Positional args: `<world>` and `<output>` (see [Output path](#output-path)). |
-| `gencfg` | `save-rule.json` | Generate a default config file and exit; throw error if it already exists. Optional positional arg: `<config file>`. |
-| `help` | — | Print the built-in help text and exit. |
-| `repl` | — | Run the interactive wizard (same as running with no command). |
-| *(no command)* | — | Run the interactive wizard: prompts for the world directory and output path in turn, and asks whether to generate a config file if one is missing. |
+Backup and utility commands:
+
+| Command | Description |
+| --- | --- |
+| `run [world] [output]` | Back up a world. Defaults: world directory `world`, output `.`. |
+| `gencfg [config file]` | Generate a default config file (default `save-rule.json`) and exit; fails if the file already exists. |
+| `repl` | Run the interactive wizard; prompts for the world directory and the output path in turn. |
+| `help` | Print the built-in help text and exit. |
+
+Config commands operate on the config file: it is loaded before the command runs and written back afterwards.
+
+| Command | Description |
+| --- | --- |
+| `add-dms <dimension>` | Add a dimension with the default range rule (`-1,-1` to `0,0`). |
+| `del-dms <dimension>` | Delete a dimension. |
+| `list` | Print every dimension rule, followed by the file rules. |
+| `list-dms` | Print only the dimension ids. |
+| `list-range <dimension>` | Print the range rules of a dimension, with their indices. |
+| `list-simple <dimension>` | Print the simple rules of a dimension, with their indices. |
+| `list-config <dimension>` | Print both the range rules and the simple rules of a dimension. |
+| `list-file` | Print the file rules, with their indices. |
+| `add-range <dimension> <from_x> <from_y> <to_x> <to_y>` | Append a rectangular range rule to a dimension. |
+| `del-range <dimension> <index>` | Delete the range rule at `<index>`, as shown by `list-range`. |
+| `add-simple <dimension> <x> <y>` | Append a single region coordinate to a dimension. |
+| `del-simple <dimension> <index>` | Delete the simple rule at `<index>`, as shown by `list-simple`. |
+| `add-file <name> [name...]` | Append one or more file rules. |
+| `del-file <index>` | Delete the file rule at `<index>`, as shown by `list-file`. |
+
+A `<dimension>` is a namespace id in the form `<namespace>:<id>`, e.g. `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead.
 
 ### Flags
 
 | Flag | Default | Description |
 | --- | --- | --- |
 | `-c` | `save-rule.json` | Path to the JSON backup rule file. |
-| `-l` | off | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`), see [Legacy layout mode](#legacy-layout-mode-l). |
+| `-l` | off | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`). Also makes `gencfg` write a legacy-friendly `file` list. |
+| `-color` | off | Enable colored output. |
 
 ## Configuration
 
-The rule file is JSON with two top-level fields: `dimension` and `file`.
+The rule file is JSON with two top-level fields: `dimension` and `file`. It can be edited by hand or maintained with the config commands above.
 
 ```json
 {
@@ -201,4 +237,7 @@ A list of files or folders at the world root to include. Files are added directl
 
 ## Notes
 
-- When using legacy world mode, manually edit the `file` field in the config file: remove `data` and change `players` to `playerdata`.
+- Flags must be written before the subcommand.
+- Every command except `gencfg` loads the config file first; if the file does not exist, an empty config is created automatically.
+- Running without a command prints an error. Use `repl` for the interactive wizard, or `help` for the built-in usage text.
+- When using legacy world mode, `gencfg -l` writes a legacy-friendly default `file` list (`playerdata` instead of `players`, plus `advancements`). If you reuse an existing config, adjust the `file` field by hand.
