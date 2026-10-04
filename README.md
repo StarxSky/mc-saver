@@ -9,7 +9,7 @@ A Minecraft world backup tool written in Go. Based on a JSON rule file, it packs
 - **Selective backups** — back up only dimensions and chunks that you care about instead of the whole world, so archives are smaller and faster.
 - **Per-dimension configuration** — selectively configure and back up the overworld (`overworld`), the Nether (`the_nether`), the End (`the_end`), and any custom dimension.
 - **Flexible region selection** — use rectangular `range` rules, or `simple` rules to specify individual region coordinates.
-- **Config management from the command line** — add, delete and list dimensions, `range`/`simple` rules and `file` rules without editing JSON by hand.
+- **Config management from the command line** — add, modify, delete and list dimensions, `range`/`simple` rules and `file` rules without editing JSON by hand.
 
 ## Download
 
@@ -77,13 +77,18 @@ Config commands operate on the config file: it is loaded before the command runs
 | `list-config <dimension>` | Print both the range rules and the simple rules of a dimension. |
 | `list-file` | Print the file rules, with their indices. |
 | `add-range <dimension> <from_x> <from_y> <to_x> <to_y>` | Append a rectangular range rule to a dimension. |
-| `del-range <dimension> <index>...` | Delete the range rules at `<index>...`, as shown by `list-range`. All indices are validated first; if any is invalid, nothing is changed. |
+| `del-range <dimension> <index>...` | Delete the range rules at `<index>...`, as shown by `list-range`. |
+| `mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>` | Replace the range rule at `<index>` with the given rectangle. |
 | `add-simple <dimension> <x> <y>` | Append a single region coordinate to a dimension. |
-| `del-simple <dimension> <index>...` | Delete the simple rules at `<index>...`, as shown by `list-simple`. All indices are validated first; if any is invalid, nothing is changed. |
+| `del-simple <dimension> <index>...` | Delete the simple rules at `<index>...`, as shown by `list-simple`. |
+| `mod-simple <dimension> <index> <x> <y>` | Replace the simple rule at `<index>`. |
 | `add-file <name> [name...]` | Append one or more file rules. |
-| `del-file <index>...` | Delete the file rules at `<index>...`, as shown by `list-file`. All indices are validated first; if any is invalid, nothing is changed. |
+| `del-file <index>...` | Delete the file rules at `<index>...`, as shown by `list-file`. |
+| `mod-file <index> <name>` | Replace the file rule at `<index>`. |
 
-A `<dimension>` is a namespace id in the form `<namespace>:<id>`, e.g. `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead. Indices are 0-based and refer to the list as it is before the command runs, so several rules can be removed in one call.
+A `<dimension>` is a namespace id in the form `<namespace>:<id>`, e.g. `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead.
+
+Indices are 0-based, as printed by the `list*` commands, and refer to the list as it is before the command runs, so several rules can be deleted in one call. `mod-*` reports an error when the index is not in the list, while `del-*` simply ignores such an index.
 
 ### Flags
 

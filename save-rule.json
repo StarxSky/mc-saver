@@ -1,55 +1,25 @@
 {
 	"dimension": {
-		"minecraft:overworld": {
-			"range": [
+		"www": {
+			"range": null,
+			"simple": [
 				{
-					"from": {
-						"x": -1,
-						"y": -1
-					},
-					"to": {
-						"x": 0,
-						"y": 0
-					}
-				}
-			],
-			"simple": null
-		},
-		"minecraft:the_end": {
-			"range": [
+					"x": 1,
+					"y": 0
+				},
 				{
-					"from": {
-						"x": -1,
-						"y": -1
-					},
-					"to": {
-						"x": 0,
-						"y": 0
-					}
-				}
-			],
-			"simple": null
-		},
-		"minecraft:the_nether": {
-			"range": [
+					"x": 4,
+					"y": 0
+				},
 				{
-					"from": {
-						"x": -1,
-						"y": -1
-					},
-					"to": {
-						"x": 0,
-						"y": 0
-					}
+					"x": 3,
+					"y": 0
 				}
-			],
-			"simple": null
+			]
 		}
 	},
 	"file": [
-		"level.dat",
-		"data",
-		"datapacks",
-		"players"
+		"www",
+		"data"
 	]
 }

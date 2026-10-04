@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"acovia.net/minecraft/save"
@@ -38,10 +37,13 @@ var (
 		"list-file":   listFile,
 		"add-range":   addRange,
 		"del-range":   delRange,
+		"mod-range":   modRange,
 		"add-simple":  addSimple,
 		"del-simple":  delSimple,
+		"mod-simple":  modSimple,
 		"add-file":    addFile,
 		"del-file":    delFile,
+		"mod-file":    modFile,
 	}
 
 	loadConfigCmd map[string]bool = map[string]bool{
@@ -56,10 +58,13 @@ var (
 		"list-file":   true,
 		"add-range":   true,
 		"del-range":   true,
+		"mod-range":   true,
 		"add-simple":  true,
 		"del-simple":  true,
+		"mod-simple":  true,
 		"add-file":    true,
 		"del-file":    true,
+		"mod-file":    true,
 	}
 
 	root *os.Root
@@ -128,9 +133,9 @@ config command:
 
 	the config file is loaded before the command runs, and written back
 	after it finished. dimension is a namespace id like
-	"minecraft:overworld". delete commands take one or more 0-based
-	indices, as shown by the list commands, and change nothing when any
-	index is invalid.
+	"minecraft:overworld". indices are 0-based, as shown by the list
+	commands. the mod commands reject an index that is not in the list,
+	while the delete commands skip one.
 
 	add-dms <dimension>
 		add a dimension with the default range rule.
@@ -162,17 +167,26 @@ config command:
 	del-range <dimension> <index>...
 		delete the range rules of the given indices.
 
+	mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
+		replace the range rule at the given index.
+
 	add-simple <dimension> <x> <y>
 		add a simple rule to a dimension.
 
 	del-simple <dimension> <index>...
 		delete the simple rules of the given indices.
 
+	mod-simple <dimension> <index> <x> <y>
+		replace the simple rule at the given index.
+
 	add-file <name> [name...]
 		add one or more file rules.
 
 	del-file <index>...
 		delete the file rules of the given indices.
+
+	mod-file <index> <name>
+		replace the file rule at the given index.
 
 options:
 
@@ -405,214 +419,5 @@ func listFile() {
 func listDms() {
 	for id := range config.Dimension {
 		fmt.Printf("- %v\n", id)
-	}
-}
-
-func addRange() {
-
-	switch true {
-	case len(arg) < 2:
-		record.Error("dimension is missing.")
-
-	case len(arg) < 6:
-		record.Error("range is missing.")
-	}
-
-	fromX, err := strconv.ParseInt(arg[2], 10, 32)
-	if err != nil {
-		record.Error("parse input coordinate.", err)
-	}
-	fromY, err := strconv.ParseInt(arg[3], 10, 32)
-	if err != nil {
-		record.Error("parse input coordinate.", err)
-	}
-	toX, err := strconv.ParseInt(arg[4], 10, 32)
-	if err != nil {
-		record.Error("parse input coordinate.", err)
-	}
-	toY, err := strconv.ParseInt(arg[5], 10, 32)
-	if err != nil {
-		record.Error("parse input coordinate.", err)
-	}
-
-	newRange := save.RangeConfig{
-		From: save.Coordinate{
-			X: int(fromX),
-			Y: int(fromY),
-		},
-		To: save.Coordinate{
-			X: int(toX),
-			Y: int(toY),
-		},
-	}
-
-	dimension, ok := config.Dimension[arg[1]]
-	if ok {
-		dimension.Range = append(dimension.Range, newRange)
-	} else {
-		dimension = save.DimensionConfig{
-			Range: []save.RangeConfig{
-				newRange,
-			},
-		}
-	}
-	config.Dimension[arg[1]] = dimension
-
-	err = saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
-}
-
-func delRange() {
-
-	switch true {
-	case len(arg) < 2:
-		record.Error("dimension is missing.")
-
-	case len(arg) < 3:
-		record.Error("number is missing.")
-	}
-
-	dimension, ok := config.Dimension[arg[1]]
-	if ok {
-		var delList []int
-		for _, v := range arg[2:] {
-			number, err := strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				record.Error("parse command flag:", err)
-			}
-			if int(number) >= len(dimension.Range) || int(number) < 0 {
-				record.Error(number, "is out of range.")
-			}
-			delList = append(delList, int(number))
-		}
-		dimension.Range = delSliceElement(dimension.Range, delList...)
-	} else {
-		record.Error(arg[1]+":", "dimension not found.")
-	}
-
-	config.Dimension[arg[1]] = dimension
-
-	err := saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
-}
-
-func addSimple() {
-
-	switch true {
-	case len(arg) < 2:
-		record.Error("dimension is missing.")
-
-	case len(arg) < 4:
-		record.Error("coordinate is missing.")
-	}
-
-	x, err := strconv.ParseInt(arg[2], 10, 32)
-	if err != nil {
-		record.Error("parse input number.", err)
-	}
-	y, err := strconv.ParseInt(arg[3], 10, 32)
-	if err != nil {
-		record.Error("parse input number.", err)
-	}
-
-	newCoordinate := save.Coordinate{
-		X: int(x),
-		Y: int(y),
-	}
-
-	dimension, ok := config.Dimension[arg[1]]
-	if ok {
-		dimension.Simple = append(dimension.Simple, newCoordinate)
-	} else {
-		dimension = save.DimensionConfig{
-			Simple: []save.Coordinate{
-				newCoordinate,
-			},
-		}
-	}
-
-	config.Dimension[arg[1]] = dimension
-	err = saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
-}
-
-func delSimple() {
-
-	switch true {
-	case len(arg) < 2:
-		record.Error("dimension is missing.")
-
-	case len(arg) < 3:
-		record.Error("number is missing.")
-	}
-
-	dimension, ok := config.Dimension[arg[1]]
-	if ok {
-		var delList []int
-		for _, v := range arg[2:] {
-			number, err := strconv.ParseInt(v, 10, 32)
-			if err != nil {
-				record.Error("parse command flag:", err)
-			}
-			if int(number) >= len(dimension.Simple) || int(number) < 0 {
-				record.Error(number, "is out of range.")
-			}
-			delList = append(delList, int(number))
-		}
-		dimension.Simple = delSliceElement(dimension.Simple, delList...)
-	} else {
-		record.Error(arg[1]+":", "dimension not found.")
-	}
-
-	config.Dimension[arg[1]] = dimension
-
-	err := saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
-}
-
-func addFile() {
-
-	if len(arg) < 2 {
-		record.Error("filename is missing.")
-	}
-
-	config.File = append(config.File, arg[1:]...)
-
-	err := saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
-	}
-}
-
-func delFile() {
-
-	if len(arg) < 2 {
-		record.Error("number is missing.")
-	}
-
-	var delList []int
-	for _, v := range arg[1:] {
-		number, err := strconv.ParseInt(v, 10, 32)
-		if err != nil {
-			record.Error("parse command flag:", err)
-		}
-		if int(number) >= len(config.File) || int(number) < 0 {
-			record.Error(number, "is out of range.")
-		}
-		delList = append(delList, int(number))
-	}
-	config.File = delSliceElement(config.File, delList...)
-
-	err := saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
 	}
 }

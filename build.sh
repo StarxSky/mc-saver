@@ -4,23 +4,23 @@ rm -r build/mc-saver*
 
 export GOARCH=amd64
 export GOOS=linux
-go build -o build/mc-saver_linux_amd64/mc-saver .
+go build -o build/mc-saver_linux_amd64/mc-saver ./cmd
 
 export GOOS=windows
-go build -o build/mc-saver_windows_amd64/mc-saver.exe  .
+go build -o build/mc-saver_windows_amd64/mc-saver.exe  ./cmd
 
 export GOOS=darwin
-go build -o build/mc-saver_darwin_amd64/mc-saver  .
+go build -o build/mc-saver_darwin_amd64/mc-saver  ./cmd
 
 export GOARCH=arm64
 export GOOS=linux
-go build -o build/mc-saver_linux_arm64/mc-saver  .
+go build -o build/mc-saver_linux_arm64/mc-saver  ./cmd
 
 export GOOS=windows
-go build -o build/mc-saver_windows_arm64/mc-saver.exe  .
+go build -o build/mc-saver_windows_arm64/mc-saver.exe  ./cmd
 
 export GOOS=darwin
-go build -o build/mc-saver_darwin_arm64/mc-saver  .
+go build -o build/mc-saver_darwin_arm64/mc-saver  ./cmd
 
 cd build
 

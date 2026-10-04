@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -86,4 +87,16 @@ func delSliceElement[T comparable](arr []T, index ...int) []T {
 		}
 	}
 	return newArr
+}
+
+func convertIntArray(array []string) ([]int, error) {
+	var intList []int
+	for _, v := range array {
+		number, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		intList = append(intList, int(number))
+	}
+	return intList, nil
 }
