@@ -1,4 +1,4 @@
-package saver
+package save
 
 import (
 	"archive/zip"
@@ -10,20 +10,20 @@ import (
 	"strings"
 )
 
-func SaveOldAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) (err error) {
+func SaveOldAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) (err error) {
 
-	if err := SaveOldDimensionFile(root, configFilePath, zipWriter, addFile); err != nil {
+	if err := SaveOldDimensionFile(root, configFilePath, zipWriter, saveFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(root, configFilePath, zipWriter, addFile); err != nil {
+	if err := SaveRootDataFile(root, configFilePath, zipWriter, saveFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) error {
 
 	rootRule, err := LoadConfig(configFilePath)
 	if err != nil {
@@ -63,7 +63,7 @@ func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.W
 				iterator := NewRangeIterator(rangeRule.From.X, rangeRule.From.Y, rangeRule.To.X, rangeRule.To.Y)
 				err := iterator.run(func(x int, y int) error {
 					regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
-					err := addFile(regionFileName, zipWriter)
+					err := saveFile(regionFileName, zipWriter)
 					if err != nil {
 						return err
 					}
@@ -78,7 +78,7 @@ func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.W
 		for _, regionDataDir := range rootFile {
 			for _, simpleRule := range dimensionRule.Simple {
 				regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule.X, simpleRule.Y)
-				err := addFile(regionFileName, zipWriter)
+				err := saveFile(regionFileName, zipWriter)
 				if err != nil {
 					return err
 				}
@@ -103,7 +103,7 @@ func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.W
 				dataFileName := path.Join(dimensionDataDirName, subFilePath)
 
 				if !d.IsDir() {
-					err := addFile(dataFileName, zipWriter)
+					err := saveFile(dataFileName, zipWriter)
 					if err != nil {
 						return fmt.Errorf("%w", err)
 					}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -58,7 +59,7 @@ func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 	return zipWriter, file, end, nil
 }
 
-func addFile(fileName string, zipWriter *zip.Writer) error {
+func saveFile(fileName string, zipWriter *zip.Writer) error {
 
 	fileReader, err := root.Open(fileName)
 	if err != nil {
@@ -96,5 +97,19 @@ func addFile(fileName string, zipWriter *zip.Writer) error {
 	}, "adding: ", headerName); err != nil {
 		return err
 	}
+	return nil
+}
+
+func saveConfig() error {
+	jsonData, err := json.MarshalIndent(config, "", "	")
+	if err != nil {
+		return fmt.Errorf("encode json:")
+	}
+
+	err = os.WriteFile(configFilePath, jsonData, 0644)
+	if err != nil {
+		return fmt.Errorf("write file:")
+	}
+
 	return nil
 }

@@ -9,14 +9,18 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
-	"acovia.net/minecraft/saver"
+	"acovia.net/minecraft/save"
 	"acovia.net/record"
 )
 
 var (
-	arg []string
+	arg    []string
+	config save.Config = save.Config{
+		Dimension: map[string]save.DimensionConfig{},
+	}
 
 	useLegacyMode  bool   = false
 	configFilePath string = "save-rule.json"
@@ -24,25 +28,36 @@ var (
 	outputPath     string = "."
 
 	cmdMap map[string]func() = map[string]func(){
-		"run":     run,
-		"gencfg":  gencfg,
-		"help":    help,
-		"repl":    repl,
-		"add-dms": addDms,
-		"del-dms": delDms,
-		"":        repl,
+		"run":         run,
+		"gencfg":      gencfg,
+		"help":        help,
+		"repl":        repl,
+		"add-dms":     addDms,
+		"del-dms":     delDms,
+		"list":        list,
+		"list-range":  listRange,
+		"list-simple": listSimple,
+		"list-config": listConfig,
+		"list-dms":    listDms,
+		"list-file":   listFile,
+		"add-range":   addRange,
+		"del-range":   delRange,
+		"add-simple":  addSimple,
+		"del-simple":  delSimple,
+		"add-file":    addFile,
+		"del-file":    delFile,
 	}
 
 	root *os.Root
 
-	defaultDimensionConfig = saver.DimensionConfig{
-		Range: []saver.RangeConfig{
+	defaultDimensionConfig = save.DimensionConfig{
+		Range: []save.RangeConfig{
 			{
-				From: saver.Coordinate{
+				From: save.Coordinate{
 					X: -1,
 					Y: -1,
 				},
-				To: saver.Coordinate{
+				To: save.Coordinate{
 					X: 0,
 					Y: 0,
 				},
@@ -50,8 +65,8 @@ var (
 		},
 	}
 
-	defaultConfig = saver.Config{
-		Dimension: map[string]saver.DimensionConfig{
+	defaultConfig = save.Config{
+		Dimension: map[string]save.DimensionConfig{
 			"minecraft:overworld":  defaultDimensionConfig,
 			"minecraft:the_nether": defaultDimensionConfig,
 			"minecraft:the_end":    defaultDimensionConfig,
@@ -67,10 +82,11 @@ var (
 
 func main() {
 	initProgram()
-	arg = flag.Args()
 
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
-
+	if len(arg) == 0 {
+		record.Error(errors.New("command is missing."))
+	}
 	function, ok := cmdMap[arg[0]]
 	if !ok {
 		record.Error(errors.New("'" + arg[0] + "' command not found."))
@@ -81,22 +97,82 @@ func main() {
 
 func help() {
 	helpOutput :=
-		`command:
+		`mc-saver [-c <config_file>] [-l] [-color] <command> [args...]
 
-	run [option] [world_path] [output_path].
+backup command:
+
+	run [world_path] [output_path]
 		start the backup according to the config file.
 		the first path is world path, default is "world".
 		second path is output path, default is "world-$time.zip".
 
-	gencfg [output_file]
-		generate a default config file.
+	gencfg [config_file]
+		generate a default config file, default is "save-rule.json".
+		throw error if the file is already existed.
+
+	repl
+		run the interactive wizard.
+
+	help
+		print this help text.
+
+config command:
+
+	the config file is loaded before the command runs, and written back
+	after it finished. dimension is a namespace id like
+	"minecraft:overworld".
+
+	add-dms <dimension>
+		add a dimension with the default range rule.
+
+	del-dms <dimension>
+		delete a dimension.
+
+	list
+		list all dimension rules and file rules.
+
+	list-dms
+		list dimension namespace ids.
+
+	list-range <dimension>
+		list range rules of a dimension.
+
+	list-simple <dimension>
+		list simple rules of a dimension.
+
+	list-config <dimension>
+		list both range rules and simple rules of a dimension.
+
+	list-file
+		list file rules.
+
+	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
+		add a range rule to a dimension.
+
+	del-range <dimension> <number>
+		delete the range rule of the given index.
+
+	add-simple <dimension> <x> <y>
+		add a simple rule to a dimension.
+
+	del-simple <dimension> <number>
+		delete the simple rule of the given index.
+
+	add-file <name> [name...]
+		add one or more file rules.
+
+	del-file <number>
+		delete the file rule of the given index.
 
 options:
 
 	-c <path>
-		specify the config file.
+		specify the config file, default is "save-rule.json".
 
-	-color <bool>
+	-l
+		legacy world mode, for worlds from before 1.21.11.
+
+	-color
 		enable color output.
 `
 	fmt.Printf("%v", helpOutput)
@@ -113,12 +189,25 @@ func initProgram() {
 		return nil
 	})
 	flag.Parse()
+
+	arg = flag.Args()
+
+	if len(arg) != 0 && arg[0] != "gencfg" {
+		configTemp, err := save.LoadConfig(configFilePath)
+		if err == nil {
+			config = configTemp
+		} else if !isExist(configFilePath) {
+			saveConfig()
+		} else {
+			record.Error("load config:", err)
+		}
+	}
 }
 
 func repl() {
 	scanner := bufio.NewScanner(os.Stdin)
 	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
-		record.Error("config file not found, please run 'mc-saver gencfg' to generate a default config.")
+		record.Error("config file not found, please run 'mc-save gencfg' to generate a default config.")
 	} else if !os.IsNotExist(err) && err != nil {
 		record.Error("verify config file:", err)
 	}
@@ -209,13 +298,13 @@ func run() {
 	defer end(nil)
 
 	if useLegacyMode {
-		if err := saver.SaveOldAllFile(root, configFilePath, zipWriter, addFile); err != nil {
+		if err := save.SaveOldAllFile(root, configFilePath, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
 			}
 		}
 	} else {
-		if err := saver.SaveAllFile(root, configFilePath, zipWriter, addFile); err != nil {
+		if err := save.SaveAllFile(root, configFilePath, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
 			}
@@ -224,55 +313,303 @@ func run() {
 }
 
 func addDms() {
-	var dimensionNamespaceID string
-
-	if len(arg) > 1 {
-		dimensionNamespaceID = arg[1]
-	} else {
+	if len(arg) < 2 {
 		record.Error("dimension namespace id is missing.")
 	}
 
-	config, err := saver.LoadConfig(configFilePath)
-	if err != nil {
-		record.Error("load config:", err)
-	}
+	config.Dimension[arg[1]] = defaultDimensionConfig
 
-	config.Dimension[dimensionNamespaceID] = defaultDimensionConfig
-
-	jsonData, err := json.MarshalIndent(config, "", "	")
+	err := saveConfig()
 	if err != nil {
-		record.Error("encode json data:", err)
-	}
-
-	err = os.WriteFile(configFilePath, jsonData, 0644)
-	if err != nil {
-		record.Error(err)
+		record.Error("save config:", err)
 	}
 }
 
 func delDms() {
-	var dimensionNamespaceID string
-
-	if len(arg) > 1 {
-		dimensionNamespaceID = arg[1]
-	} else {
+	if len(arg) < 2 {
 		record.Error("dimension namespace id is missing.")
 	}
 
-	config, err := saver.LoadConfig(configFilePath)
+	delete(config.Dimension, arg[1])
+
+	err := saveConfig()
 	if err != nil {
-		record.Error("load config:", err)
+		record.Error("save config:", err)
+	}
+}
+
+func listRange() {
+	if len(arg) < 2 {
+		record.Error("dimension is missing.")
 	}
 
-	delete(config.Dimension, dimensionNamespaceID)
+	if dimension, ok := config.Dimension[arg[1]]; ok {
+		if len(dimension.Range) == 0 {
+			fmt.Printf("no range config for %v.\n", arg[1])
+		}
+		for i, v := range dimension.Range {
+			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+		}
+	} else {
+		record.Error(arg[1]+":", "dimension not found.")
+	}
+}
 
-	jsonData, err := json.MarshalIndent(config, "", "	")
-	if err != nil {
-		record.Error("encode json data:", err)
+func listSimple() {
+	if len(arg) < 2 {
+		record.Error("dimension is missing.")
 	}
 
-	err = os.WriteFile(configFilePath, jsonData, 0644)
+	if dimension, ok := config.Dimension[arg[1]]; ok {
+		if len(dimension.Simple) == 0 {
+			fmt.Printf("no simple config for %v.\n", arg[1])
+		}
+		for i, v := range dimension.Simple {
+			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
+		}
+	} else {
+		record.Error(arg[1]+":", "dimension not found.")
+	}
+}
+
+func listConfig() {
+	if len(arg) < 2 {
+		record.Error("dimension is missing.")
+	}
+	fmt.Printf("range config for %v:\n", arg[1])
+	listRange()
+	fmt.Printf("simple config for %v:\n", arg[1])
+	listSimple()
+}
+
+func list() {
+	if len(config.Dimension) == 0 {
+		fmt.Println("no dimension config at all.")
+	}
+
+	for id, rule := range config.Dimension {
+		fmt.Printf("range config for %v:\n", id)
+		if len(rule.Range) == 0 {
+			fmt.Printf("no range config for %v.\n", id)
+		}
+		for i, v := range rule.Range {
+			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+		}
+
+		fmt.Printf("simple config for %v:\n", id)
+		if len(rule.Simple) == 0 {
+			fmt.Printf("no simple config for %v.\n", id)
+		}
+		for i, v := range rule.Simple {
+			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
+		}
+	}
+
+	fmt.Println("file config:")
+	listFile()
+}
+
+func listFile() {
+	if len(config.File) == 0 {
+		fmt.Println("no file config.")
+	}
+	for i, v := range config.File {
+		fmt.Printf("- %v: %q\n", i, v)
+	}
+}
+
+func listDms() {
+	for id := range config.Dimension {
+		fmt.Printf("- %v\n", id)
+	}
+}
+
+func addRange() {
+	switch true {
+	case len(arg) < 2:
+		record.Error("dimension is missing.")
+
+	case len(arg) < 6:
+		record.Error("range is missing.")
+	}
+
+	fromX, err := strconv.ParseInt(arg[2], 10, 32)
 	if err != nil {
-		record.Error(err)
+		record.Error("parse input coordinate.", err)
+	}
+	fromY, err := strconv.ParseInt(arg[3], 10, 32)
+	if err != nil {
+		record.Error("parse input coordinate.", err)
+	}
+	toX, err := strconv.ParseInt(arg[4], 10, 32)
+	if err != nil {
+		record.Error("parse input coordinate.", err)
+	}
+	toY, err := strconv.ParseInt(arg[5], 10, 32)
+	if err != nil {
+		record.Error("parse input coordinate.", err)
+	}
+
+	newRange := save.RangeConfig{
+		From: save.Coordinate{
+			X: int(fromX),
+			Y: int(fromY),
+		},
+		To: save.Coordinate{
+			X: int(toX),
+			Y: int(toY),
+		},
+	}
+
+	dimension, ok := config.Dimension[arg[1]]
+	if ok {
+		dimension.Range = append(dimension.Range, newRange)
+	} else {
+		dimension = save.DimensionConfig{
+			Range: []save.RangeConfig{
+				newRange,
+			},
+		}
+	}
+	config.Dimension[arg[1]] = dimension
+
+	err = saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
+	}
+}
+
+func delRange() {
+	switch true {
+	case len(arg) < 2:
+		record.Error("dimension is missing.")
+
+	case len(arg) < 3:
+		record.Error("number is missing.")
+	}
+
+	number, err := strconv.ParseInt(arg[2], 10, 32)
+	if err != nil {
+		record.Error("parse input number.", err)
+	}
+
+	dimension, ok := config.Dimension[arg[1]]
+	if ok {
+		if int(number) >= len(dimension.Range) {
+			record.Error(number, "is out of range", len(dimension.Range)-1)
+		}
+		dimension.Range = append(dimension.Range[:number], dimension.Range[number+1:]...)
+	} else {
+		record.Error(arg[1]+":", "dimension not found.")
+	}
+
+	config.Dimension[arg[1]] = dimension
+
+	err = saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
+	}
+}
+
+func addSimple() {
+	switch true {
+	case len(arg) < 2:
+		record.Error("dimension is missing.")
+
+	case len(arg) < 4:
+		record.Error("coordinate is missing.")
+	}
+
+	x, err := strconv.ParseInt(arg[2], 10, 32)
+	if err != nil {
+		record.Error("parse input number.", err)
+	}
+	y, err := strconv.ParseInt(arg[3], 10, 32)
+	if err != nil {
+		record.Error("parse input number.", err)
+	}
+
+	newCoordinate := save.Coordinate{
+		X: int(x),
+		Y: int(y),
+	}
+
+	dimension, ok := config.Dimension[arg[1]]
+	if ok {
+		dimension.Simple = append(dimension.Simple, newCoordinate)
+	} else {
+		dimension = save.DimensionConfig{
+			Simple: []save.Coordinate{
+				newCoordinate,
+			},
+		}
+	}
+
+	config.Dimension[arg[1]] = dimension
+	err = saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
+	}
+}
+
+func delSimple() {
+	switch true {
+	case len(arg) < 2:
+		record.Error("dimension is missing.")
+
+	case len(arg) < 3:
+		record.Error("number is missing.")
+	}
+
+	number, err := strconv.ParseInt(arg[2], 10, 32)
+	if err != nil {
+		record.Error("parse input number.", err)
+	}
+
+	dimension, ok := config.Dimension[arg[1]]
+	if ok {
+		if int(number) >= len(dimension.Simple) {
+			record.Error(number, "is out of range", len(dimension.Simple)-1)
+		}
+		dimension.Simple = append(dimension.Simple[:number], dimension.Simple[number+1:]...)
+	} else {
+		record.Error(arg[1]+":", "dimension not found.")
+	}
+
+	config.Dimension[arg[1]] = dimension
+
+	err = saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
+	}
+}
+
+func addFile() {
+	if len(arg) < 2 {
+		record.Error("filename is missing.")
+	}
+
+	config.File = append(config.File, arg[1:]...)
+
+	err := saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
+	}
+}
+
+func delFile() {
+	if len(arg) < 2 {
+		record.Error("number is missing.")
+	}
+
+	number, err := strconv.ParseInt(arg[1], 10, 32)
+	if err != nil {
+		record.Error("parse command line flag:", err)
+	}
+	config.File = append(config.File[:number], config.File[number+1:]...)
+
+	err = saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
 	}
 }

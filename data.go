@@ -68,3 +68,11 @@ func isExtKeyWord(char rune) bool {
 		return false
 	}
 }
+
+func isExist(filename string) bool {
+	_, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}

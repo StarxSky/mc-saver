@@ -1,4 +1,4 @@
-package saver
+package save
 
 import (
 	"archive/zip"
@@ -47,7 +47,7 @@ var (
 	}
 )
 
-type addFile func(fileName string, zipWriter *zip.Writer) error
+type saveFile func(fileName string, zipWriter *zip.Writer) error
 
 func (iterator RangeIterator) run(function func(x int, y int) error) error {
 	if iterator.FromX > iterator.ToX {
@@ -66,20 +66,20 @@ func (iterator RangeIterator) run(function func(x int, y int) error) error {
 	return nil
 }
 
-func SaveAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) (err error) {
+func SaveAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) (err error) {
 
-	if err := SaveDimensionFile(root, configFilePath, zipWriter, addFile); err != nil {
+	if err := SaveDimensionFile(root, configFilePath, zipWriter, saveFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(root, configFilePath, zipWriter, addFile); err != nil {
+	if err := SaveRootDataFile(root, configFilePath, zipWriter, saveFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) error {
 
 	rootRule, err := LoadConfig(configFilePath)
 	if err != nil {
@@ -96,10 +96,11 @@ func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writ
 		namespace, dimensionID := namespaceAndID[0], namespaceAndID[1]
 		dimensionRootDirPath := path.Join("dimensions", namespace, dimensionID)
 
-		if dimensionRootDirStat, err := root.Stat(dimensionRootDirPath); err != nil {
+		dimensionRootDirStat, err := root.Stat(dimensionRootDirPath)
+		if err != nil {
 			return fmt.Errorf("open dimension root directory: %w", err)
 		} else if !dimensionRootDirStat.IsDir() {
-			return fmt.Errorf("open dimension root directory: %v: %w", dimensionRootDirPath, errors.New("not a directory"))
+			return fmt.Errorf("open dimension root directory: %v: %v", dimensionRootDirPath, "not a directory")
 		}
 
 		for _, rangeRule := range dimensionRule.Range {
@@ -107,7 +108,7 @@ func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writ
 				iterator := NewRangeIterator(rangeRule.From.X, rangeRule.From.Y, rangeRule.To.X, rangeRule.To.Y)
 				err := iterator.run(func(x int, y int) error {
 					regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, x, y)
-					err := addFile(regionFileName, zipWriter)
+					err := saveFile(regionFileName, zipWriter)
 					if err != nil {
 						return err
 					}
@@ -122,7 +123,7 @@ func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writ
 		for _, regionDataDir := range rootFile {
 			for _, simpleRule := range dimensionRule.Simple {
 				regionFileName := FormatRegionFilePath(dimensionRootDirPath, regionDataDir, simpleRule.X, simpleRule.Y)
-				err := addFile(regionFileName, zipWriter)
+				err := saveFile(regionFileName, zipWriter)
 				if err != nil {
 					return err
 				}
@@ -147,7 +148,7 @@ func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writ
 				dataFileName := path.Join(dimensionDataDirName, subFilePath)
 
 				if !d.IsDir() {
-					err := addFile(dataFileName, zipWriter)
+					err := saveFile(dataFileName, zipWriter)
 					if err != nil {
 						return fmt.Errorf("%w", err)
 					}
@@ -163,7 +164,7 @@ func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writ
 	return nil
 }
 
-func SaveRootDataFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, addFile addFile) error {
+func SaveRootDataFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) error {
 
 	rootRule, err := LoadConfig(configFilePath)
 	if err != nil {
@@ -180,7 +181,7 @@ func SaveRootDataFile(root *os.Root, configFilePath string, zipWriter *zip.Write
 		switch fileStat.IsDir() {
 
 		case false:
-			err := addFile(file, zipWriter)
+			err := saveFile(file, zipWriter)
 			if err != nil {
 				return err
 			}
@@ -199,7 +200,7 @@ func SaveRootDataFile(root *os.Root, configFilePath string, zipWriter *zip.Write
 				fullFilePath := path.Join(file, subFilePath)
 
 				if !d.IsDir() {
-					err := addFile(fullFilePath, zipWriter)
+					err := saveFile(fullFilePath, zipWriter)
 					if err != nil {
 						return err
 					}
@@ -233,13 +234,13 @@ func LoadConfig(configFilePath string) (Config, error) {
 
 	jsonData, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return Config{}, fmt.Errorf("read config file: %v", err)
+		return Config{}, err
 	}
 
 	var rootRule Config
 	err = json.Unmarshal(jsonData, &rootRule)
 	if err != nil {
-		return Config{}, fmt.Errorf("decode json data: %v", err)
+		return Config{}, err
 	}
 
 	return rootRule, nil
