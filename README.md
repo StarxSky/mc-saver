@@ -18,9 +18,6 @@ Download the corresponding binary executable from the [Releases](https://github.
 ## Example usage
 
 ```bash
-./mc-saver repl
-# Starts a wizard that guides you through the backup
-
 ./mc-saver gencfg
 # Generates a default config file - save-rule.json
 
@@ -65,7 +62,6 @@ Backup and utility commands:
 | --- | --- |
 | `run [world] [output]` | Back up a world. Defaults: world directory `world`, output `.`. |
 | `gencfg [config file]` | Generate a default config file (default `save-rule.json`) and exit; fails if the file already exists. |
-| `repl` | Run the interactive wizard; prompts for the world directory and the output path in turn. |
 | `help` | Print the built-in help text and exit. |
 
 Config commands operate on the config file: it is loaded before the command runs and written back afterwards.
@@ -81,13 +77,13 @@ Config commands operate on the config file: it is loaded before the command runs
 | `list-config <dimension>` | Print both the range rules and the simple rules of a dimension. |
 | `list-file` | Print the file rules, with their indices. |
 | `add-range <dimension> <from_x> <from_y> <to_x> <to_y>` | Append a rectangular range rule to a dimension. |
-| `del-range <dimension> <index>` | Delete the range rule at `<index>`, as shown by `list-range`. |
+| `del-range <dimension> <index>...` | Delete the range rules at `<index>...`, as shown by `list-range`. All indices are validated first; if any is invalid, nothing is changed. |
 | `add-simple <dimension> <x> <y>` | Append a single region coordinate to a dimension. |
-| `del-simple <dimension> <index>` | Delete the simple rule at `<index>`, as shown by `list-simple`. |
+| `del-simple <dimension> <index>...` | Delete the simple rules at `<index>...`, as shown by `list-simple`. All indices are validated first; if any is invalid, nothing is changed. |
 | `add-file <name> [name...]` | Append one or more file rules. |
-| `del-file <index>` | Delete the file rule at `<index>`, as shown by `list-file`. |
+| `del-file <index>...` | Delete the file rules at `<index>...`, as shown by `list-file`. All indices are validated first; if any is invalid, nothing is changed. |
 
-A `<dimension>` is a namespace id in the form `<namespace>:<id>`, e.g. `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead.
+A `<dimension>` is a namespace id in the form `<namespace>:<id>`, e.g. `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead. Indices are 0-based and refer to the list as it is before the command runs, so several rules can be removed in one call.
 
 ### Flags
 
@@ -99,7 +95,7 @@ A `<dimension>` is a namespace id in the form `<namespace>:<id>`, e.g. `minecraf
 
 ## Configuration
 
-The rule file is JSON with two top-level fields: `dimension` and `file`. It can be edited by hand or maintained with the config commands above.
+The rule file is JSON with two top-level fields: `dimension` and `file`. It is meant to be maintained with the config commands above; editing it by hand is **not recommended**, because a typo in a field name is silently ignored and can leave rules out of the backup. If you do edit it, run `list` afterwards to see what the tool actually reads.
 
 ```json
 {
@@ -238,6 +234,6 @@ A list of files or folders at the world root to include. Files are added directl
 ## Notes
 
 - Flags must be written before the subcommand.
-- Every command except `gencfg` loads the config file first; if the file does not exist, an empty config is created automatically.
-- Running without a command prints an error. Use `repl` for the interactive wizard, or `help` for the built-in usage text.
-- When using legacy world mode, `gencfg -l` writes a legacy-friendly default `file` list (`playerdata` instead of `players`, plus `advancements`). If you reuse an existing config, adjust the `file` field by hand.
+- Every command except `help` and `gencfg` loads the config file first; if the file does not exist, an empty config is created automatically.
+- Running without a command prints an error; use `help` for the built-in usage text.
+- When using legacy world mode, `gencfg -l` writes a legacy-friendly default `file` list (`playerdata` instead of `players`, plus `advancements`). If you reuse an existing config, update the `file` field with `del-file` / `add-file`.
