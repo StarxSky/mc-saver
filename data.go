@@ -20,7 +20,7 @@ func formatOutPutPath(archiveFilePath string) (string, error) {
 		}
 		archiveFilePath = outputPath
 
-	case err != nil && !os.IsNotExist(err):
+	case !os.IsNotExist(err) && err != nil:
 		return "", fmt.Errorf("read file info: %v", err)
 
 	case outputFileInfo.IsDir():
@@ -42,14 +42,16 @@ func formatOutPutPath(archiveFilePath string) (string, error) {
 }
 
 func addSubfixBeforeExt(archiveFilePath string) (string, error) {
-	nameArr := strings.FieldsFunc(archiveFilePath, isExtKeyWord)
+	basePath := path.Base(archiveFilePath)
+	dirPath := path.Dir(archiveFilePath)
+	nameArr := strings.FieldsFunc(basePath, isExtKeyWord)
 	for number := 1; ; number++ {
 		var subfix string = "-" + fmt.Sprint(number)
-		archiveFilePath = nameArr[0] + subfix
+		basePath = nameArr[0] + subfix
 		for _, ext := range nameArr[1:] {
-			archiveFilePath += "." + ext
+			basePath += "." + ext
 		}
-		stat, err := os.Stat(archiveFilePath)
+		stat, err := os.Stat(path.Join(dirPath, basePath))
 		if os.IsNotExist(err) {
 			break
 		} else if err != nil && !os.IsNotExist(err) {
@@ -58,7 +60,7 @@ func addSubfixBeforeExt(archiveFilePath string) (string, error) {
 			continue
 		}
 	}
-	return archiveFilePath, nil
+	return path.Join(dirPath, basePath), nil
 }
 
 func isExtKeyWord(char rune) bool {
@@ -69,10 +71,19 @@ func isExtKeyWord(char rune) bool {
 	}
 }
 
-func isExist(filename string) bool {
-	_, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
+func delSliceElement[T comparable](arr []T, index ...int) []T {
+	var newArr []T
+	for n, e := range arr {
+		canAppend := true
+		for _, i := range index {
+			if n == i {
+				canAppend = false
+				break
+			}
+		}
+		if canAppend {
+			newArr = append(newArr, e)
+		}
 	}
-	return true
+	return newArr
 }

@@ -19,13 +19,9 @@ func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 		return nil, nil, nil, fmt.Errorf("format output path: %v", err)
 	}
 
-	file, err := os.CreateTemp(path.Dir(archiveFilePath), "archive")
+	file, err := os.Create(archiveFilePath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("create temp archive: %v", err)
-	}
-
-	if err = file.Chmod(0655); err != nil {
-		return nil, nil, nil, fmt.Errorf("change temp archive permission: %v", err)
 	}
 
 	zipWriter := zip.NewWriter(file)
@@ -37,11 +33,6 @@ func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 				return errors.Join(err, removeErr)
 			}
 			return err
-		}
-
-		if err := os.Rename(file.Name(), archiveFilePath); err != nil {
-			os.Remove(file.Name())
-			return fmt.Errorf("rename temp archive: %v", err)
 		}
 
 		if err := zipWriter.Close(); err != nil {
@@ -62,10 +53,13 @@ func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 func saveFile(fileName string, zipWriter *zip.Writer) error {
 
 	fileReader, err := root.Open(fileName)
-	if err != nil {
+	if os.IsNotExist(err) {
 		record.Warn("skip file:", err)
 		return nil
+	} else if err != nil {
+		return fmt.Errorf("open file: %w", err)
 	}
+
 	defer fileReader.Close()
 
 	fileInfo, err := root.Stat(fileName)

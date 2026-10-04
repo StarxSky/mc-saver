@@ -40,6 +40,10 @@ type Coordinate struct {
 }
 
 var (
+	NullConfig = Config{
+		Dimension: map[string]DimensionConfig{},
+	}
+
 	rootFile = []string{
 		"region",
 		"entities",
@@ -66,27 +70,22 @@ func (iterator RangeIterator) run(function func(x int, y int) error) error {
 	return nil
 }
 
-func SaveAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) (err error) {
+func SaveAllFile(root *os.Root, config Config, zipWriter *zip.Writer, saveFile saveFile) (err error) {
 
-	if err := SaveDimensionFile(root, configFilePath, zipWriter, saveFile); err != nil {
+	if err := SaveDimensionFile(root, config, zipWriter, saveFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(root, configFilePath, zipWriter, saveFile); err != nil {
+	if err := SaveRootDataFile(root, config, zipWriter, saveFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) error {
+func SaveDimensionFile(root *os.Root, config Config, zipWriter *zip.Writer, saveFile saveFile) error {
 
-	rootRule, err := LoadConfig(configFilePath)
-	if err != nil {
-		return err
-	}
-
-	for namespaceID, dimensionRule := range rootRule.Dimension {
+	for namespaceID, dimensionRule := range config.Dimension {
 
 		namespaceAndID := strings.FieldsFunc(namespaceID, IsNamespaceKeyWord)
 		if len(namespaceAndID) != 2 {
@@ -164,14 +163,9 @@ func SaveDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writ
 	return nil
 }
 
-func SaveRootDataFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) error {
+func SaveRootDataFile(root *os.Root, config Config, zipWriter *zip.Writer, saveFile saveFile) error {
 
-	rootRule, err := LoadConfig(configFilePath)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range rootRule.File {
+	for _, file := range config.File {
 
 		fileStat, err := root.Stat(file)
 		if err != nil {
@@ -234,17 +228,20 @@ func LoadConfig(configFilePath string) (Config, error) {
 
 	jsonData, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return Config{}, err
+		return NullConfig, err // fmt.Errorf("open config file: %v", err)
 	}
 
-	var rootRule Config
-	err = json.Unmarshal(jsonData, &rootRule)
+	var config Config
+	err = json.Unmarshal(jsonData, &config)
 	if err != nil {
-		return Config{}, err
+		return NullConfig, err // fmt.Errorf("decode json data: %v", err)
 	}
 
-	return rootRule, nil
+	if config.Dimension == nil {
+		config.Dimension = NullConfig.Dimension
+	}
 
+	return config, nil
 }
 
 func invertedIntValue(a *int, b *int) {

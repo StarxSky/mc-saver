@@ -10,27 +10,22 @@ import (
 	"strings"
 )
 
-func SaveOldAllFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) (err error) {
+func SaveOldAllFile(root *os.Root, config Config, zipWriter *zip.Writer, saveFile saveFile) (err error) {
 
-	if err := SaveOldDimensionFile(root, configFilePath, zipWriter, saveFile); err != nil {
+	if err := SaveOldDimensionFile(root, config, zipWriter, saveFile); err != nil {
 		return err
 	}
 
-	if err := SaveRootDataFile(root, configFilePath, zipWriter, saveFile); err != nil {
+	if err := SaveRootDataFile(root, config, zipWriter, saveFile); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.Writer, saveFile saveFile) error {
+func SaveOldDimensionFile(root *os.Root, config Config, zipWriter *zip.Writer, saveFile saveFile) error {
 
-	rootRule, err := LoadConfig(configFilePath)
-	if err != nil {
-		return err
-	}
-
-	for namespaceID, dimensionRule := range rootRule.Dimension {
+	for namespaceID, dimensionRule := range config.Dimension {
 
 		namespaceAndID := strings.FieldsFunc(namespaceID, IsNamespaceKeyWord)
 		if len(namespaceAndID) != 2 {
@@ -86,7 +81,7 @@ func SaveOldDimensionFile(root *os.Root, configFilePath string, zipWriter *zip.W
 		}
 
 		dimensionDataDirName := path.Join("dimensions", namespace, dimensionID, "data")
-		_, err = root.Stat(dimensionDataDirName)
+		_, err := root.Stat(dimensionDataDirName)
 		if !os.IsNotExist(err) {
 			dimensionDataRootDir, err := root.OpenRoot(dimensionDataDirName)
 			if err != nil {

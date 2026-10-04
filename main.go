@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -18,9 +17,7 @@ import (
 
 var (
 	arg    []string
-	config save.Config = save.Config{
-		Dimension: map[string]save.DimensionConfig{},
-	}
+	config save.Config = save.NullConfig
 
 	useLegacyMode  bool   = false
 	configFilePath string = "save-rule.json"
@@ -31,7 +28,6 @@ var (
 		"run":         run,
 		"gencfg":      gencfg,
 		"help":        help,
-		"repl":        repl,
 		"add-dms":     addDms,
 		"del-dms":     delDms,
 		"list":        list,
@@ -46,6 +42,24 @@ var (
 		"del-simple":  delSimple,
 		"add-file":    addFile,
 		"del-file":    delFile,
+	}
+
+	loadConfigCmd map[string]bool = map[string]bool{
+		"run":         true,
+		"add-dms":     true,
+		"del-dms":     true,
+		"list":        true,
+		"list-range":  true,
+		"list-simple": true,
+		"list-config": true,
+		"list-dms":    true,
+		"list-file":   true,
+		"add-range":   true,
+		"del-range":   true,
+		"add-simple":  true,
+		"del-simple":  true,
+		"add-file":    true,
+		"del-file":    true,
 	}
 
 	root *os.Root
@@ -84,9 +98,6 @@ func main() {
 	initProgram()
 
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
-	if len(arg) == 0 {
-		record.Error(errors.New("command is missing."))
-	}
 	function, ok := cmdMap[arg[0]]
 	if !ok {
 		record.Error(errors.New("'" + arg[0] + "' command not found."))
@@ -110,9 +121,6 @@ backup command:
 		generate a default config file, default is "save-rule.json".
 		throw error if the file is already existed.
 
-	repl
-		run the interactive wizard.
-
 	help
 		print this help text.
 
@@ -120,7 +128,9 @@ config command:
 
 	the config file is loaded before the command runs, and written back
 	after it finished. dimension is a namespace id like
-	"minecraft:overworld".
+	"minecraft:overworld". delete commands take one or more 0-based
+	indices, as shown by the list commands, and change nothing when any
+	index is invalid.
 
 	add-dms <dimension>
 		add a dimension with the default range rule.
@@ -149,20 +159,20 @@ config command:
 	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
 		add a range rule to a dimension.
 
-	del-range <dimension> <number>
-		delete the range rule of the given index.
+	del-range <dimension> <index>...
+		delete the range rules of the given indices.
 
 	add-simple <dimension> <x> <y>
 		add a simple rule to a dimension.
 
-	del-simple <dimension> <number>
-		delete the simple rule of the given index.
+	del-simple <dimension> <index>...
+		delete the simple rules of the given indices.
 
 	add-file <name> [name...]
 		add one or more file rules.
 
-	del-file <number>
-		delete the file rule of the given index.
+	del-file <index>...
+		delete the file rules of the given indices.
 
 options:
 
@@ -184,55 +194,27 @@ func initProgram() {
 		useLegacyMode = true
 		return nil
 	})
-	flag.BoolFunc("color", "enable color output.", func(s string) error {
-		record.EnableColor = true
-		return nil
-	})
+	flag.BoolVar(&record.EnableColor, "color", false, "enable color output.")
 	flag.Parse()
-
 	arg = flag.Args()
 
-	if len(arg) != 0 && arg[0] != "gencfg" {
-		configTemp, err := save.LoadConfig(configFilePath)
-		if err == nil {
-			config = configTemp
-		} else if !isExist(configFilePath) {
-			saveConfig()
-		} else {
+	if len(arg) == 0 {
+		record.Error(errors.New("command is missing."))
+	}
+
+	if ok, _ := loadConfigCmd[arg[0]]; ok {
+		var err error
+		config, err = save.LoadConfig(configFilePath)
+		if os.IsNotExist(err) {
+			record.Info("config file:", configFilePath, "not found, generate a empty config file")
+			err := saveConfig()
+			if err != nil {
+				record.Error("save config:", err)
+			}
+		} else if err != nil {
 			record.Error("load config:", err)
 		}
 	}
-}
-
-func repl() {
-	scanner := bufio.NewScanner(os.Stdin)
-	if _, err := os.Stat(configFilePath); os.IsNotExist(err) {
-		record.Error("config file not found, please run 'mc-save gencfg' to generate a default config.")
-	} else if !os.IsNotExist(err) && err != nil {
-		record.Error("verify config file:", err)
-	}
-	fmt.Printf("world directory path (default is world): ")
-	if scanner.Scan() {
-		input := scanner.Text()
-		input = strings.ReplaceAll(input, "\\", "/")
-		if len(input) != 0 {
-			worldDirPath = input
-		}
-		if absPath, err := filepath.Abs(worldDirPath); err != nil {
-			record.Error("check world directory path):", err)
-		} else {
-			worldDirPath = absPath
-		}
-	}
-	fmt.Printf("output path (default is world-$time.zip): ")
-	if scanner.Scan() {
-		input := scanner.Text()
-		input = strings.ReplaceAll(input, "\\", "/")
-		if len(input) != 0 {
-			outputPath = path.Clean(input)
-		}
-	}
-	run()
 }
 
 func gencfg() {
@@ -295,20 +277,22 @@ func run() {
 		record.Error("init zip writer:", err)
 	}
 
-	defer end(nil)
-
 	if useLegacyMode {
-		if err := save.SaveOldAllFile(root, configFilePath, zipWriter, saveFile); err != nil {
+		if err := save.SaveOldAllFile(root, config, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
 			}
 		}
 	} else {
-		if err := save.SaveAllFile(root, configFilePath, zipWriter, saveFile); err != nil {
+		if err := save.SaveAllFile(root, config, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
 				record.Error(err)
 			}
 		}
+	}
+
+	if err := end(nil); err != nil {
+		record.Error("close file writer:", err)
 	}
 }
 
@@ -425,6 +409,7 @@ func listDms() {
 }
 
 func addRange() {
+
 	switch true {
 	case len(arg) < 2:
 		record.Error("dimension is missing.")
@@ -480,6 +465,7 @@ func addRange() {
 }
 
 func delRange() {
+
 	switch true {
 	case len(arg) < 2:
 		record.Error("dimension is missing.")
@@ -488,30 +474,34 @@ func delRange() {
 		record.Error("number is missing.")
 	}
 
-	number, err := strconv.ParseInt(arg[2], 10, 32)
-	if err != nil {
-		record.Error("parse input number.", err)
-	}
-
 	dimension, ok := config.Dimension[arg[1]]
 	if ok {
-		if int(number) >= len(dimension.Range) {
-			record.Error(number, "is out of range", len(dimension.Range)-1)
+		var delList []int
+		for _, v := range arg[2:] {
+			number, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				record.Error("parse command flag:", err)
+			}
+			if int(number) >= len(dimension.Range) || int(number) < 0 {
+				record.Error(number, "is out of range.")
+			}
+			delList = append(delList, int(number))
 		}
-		dimension.Range = append(dimension.Range[:number], dimension.Range[number+1:]...)
+		dimension.Range = delSliceElement(dimension.Range, delList...)
 	} else {
 		record.Error(arg[1]+":", "dimension not found.")
 	}
 
 	config.Dimension[arg[1]] = dimension
 
-	err = saveConfig()
+	err := saveConfig()
 	if err != nil {
 		record.Error("save config:", err)
 	}
 }
 
 func addSimple() {
+
 	switch true {
 	case len(arg) < 2:
 		record.Error("dimension is missing.")
@@ -553,6 +543,7 @@ func addSimple() {
 }
 
 func delSimple() {
+
 	switch true {
 	case len(arg) < 2:
 		record.Error("dimension is missing.")
@@ -561,30 +552,34 @@ func delSimple() {
 		record.Error("number is missing.")
 	}
 
-	number, err := strconv.ParseInt(arg[2], 10, 32)
-	if err != nil {
-		record.Error("parse input number.", err)
-	}
-
 	dimension, ok := config.Dimension[arg[1]]
 	if ok {
-		if int(number) >= len(dimension.Simple) {
-			record.Error(number, "is out of range", len(dimension.Simple)-1)
+		var delList []int
+		for _, v := range arg[2:] {
+			number, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				record.Error("parse command flag:", err)
+			}
+			if int(number) >= len(dimension.Simple) || int(number) < 0 {
+				record.Error(number, "is out of range.")
+			}
+			delList = append(delList, int(number))
 		}
-		dimension.Simple = append(dimension.Simple[:number], dimension.Simple[number+1:]...)
+		dimension.Simple = delSliceElement(dimension.Simple, delList...)
 	} else {
 		record.Error(arg[1]+":", "dimension not found.")
 	}
 
 	config.Dimension[arg[1]] = dimension
 
-	err = saveConfig()
+	err := saveConfig()
 	if err != nil {
 		record.Error("save config:", err)
 	}
 }
 
 func addFile() {
+
 	if len(arg) < 2 {
 		record.Error("filename is missing.")
 	}
@@ -598,17 +593,25 @@ func addFile() {
 }
 
 func delFile() {
+
 	if len(arg) < 2 {
 		record.Error("number is missing.")
 	}
 
-	number, err := strconv.ParseInt(arg[1], 10, 32)
-	if err != nil {
-		record.Error("parse command line flag:", err)
+	var delList []int
+	for _, v := range arg[1:] {
+		number, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			record.Error("parse command flag:", err)
+		}
+		if int(number) >= len(config.File) || int(number) < 0 {
+			record.Error(number, "is out of range.")
+		}
+		delList = append(delList, int(number))
 	}
-	config.File = append(config.File[:number], config.File[number+1:]...)
+	config.File = delSliceElement(config.File, delList...)
 
-	err = saveConfig()
+	err := saveConfig()
 	if err != nil {
 		record.Error("save config:", err)
 	}
