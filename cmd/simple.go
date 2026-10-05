@@ -1,9 +1,32 @@
 package main
 
 import (
-	"acovia.net/record"
 	"acovia.net/minecraft/save"
+	"acovia.net/record"
+	"fmt"
 )
+
+func listSimple() {
+	if len(arg) < 2 {
+		record.Error("syntax error, usage: mc-saver list-simple <dimension>...")
+	}
+
+	_, ok := config.Dimension[arg[1]]
+	if !ok {
+		record.Error(arg[1]+":", "dimension not found")
+	}
+
+	for _, id := range arg[1:] {
+		simpleConfig := config.Dimension[id].Simple
+		if len(simpleConfig) == 0 {
+			fmt.Printf("no simple config for %v\n", id)
+			continue
+		}
+		for i, v := range simpleConfig {
+			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
+		}
+	}
+}
 
 func addSimple() {
 
@@ -11,21 +34,21 @@ func addSimple() {
 		record.Error("syntax error, usage: mc-saver add-simple <dimension> <x> <y>")
 	}
 
-	numberList, err := convertIntArray(arg[2:])
+	indexSet, err := convertIntArray(arg[2:])
 	if err != nil {
-		record.Error("convert string to number:", err)
+		record.Error("parse command line args:", err)
 	}
 
 	newCoordinate := save.Coordinate{
-		X: numberList[0],
-		Y: numberList[1],
+		X: indexSet[0],
+		Y: indexSet[1],
 	}
 
 	dimension, _ := config.Dimension[arg[1]]
 	dimension.Simple = append(dimension.Simple, newCoordinate)
 
 	config.Dimension[arg[1]] = dimension
-	
+
 	err = saveConfig()
 	if err != nil {
 		record.Error("save config:", err)
@@ -34,22 +57,26 @@ func addSimple() {
 
 func delSimple() {
 	if len(arg) < 3 {
-		record.Error("syntax error, usage: mc-saver del-simple <dimension> <number> [number]...")
+		record.Error("syntax error, usage: mc-saver del-simple <dimension> <number>...")
 	}
-
-	var delList []int
 
 	dimension, ok := config.Dimension[arg[1]]
 	if !ok {
-		record.Error(arg[1]+":", "dimension not found.")
+		record.Error(arg[1]+":", "dimension not found")
 	}
 
-	delList, err := convertIntArray(arg[2:])
+	var indexSet []int
+
+	indexSet, err := convertIntArray(arg[2:])
 	if err != nil {
-		record.Error("convert string to number:", err)
+		record.Error("parse command line args:", err)
 	}
 
-	dimension.Simple = delSliceElement(dimension.Simple, delList...)
+	dimension.Simple, err = deleteSliceElements(dimension.Simple, indexSet...)
+	if err != nil {
+		record.Error("delete element:", err)
+	}
+
 	config.Dimension[arg[1]] = dimension
 
 	err = saveConfig()
@@ -63,21 +90,26 @@ func modSimple() {
 		record.Error("syntax error, usage: mc-saver mod-simple <dimension> <number> <x> <y>")
 	}
 
-	numberList, err := convertIntArray(arg[2:])
+	_, ok := config.Dimension[arg[1]]
+	if !ok {
+		record.Error(arg[1]+":", "dimension not found")
+	}
+
+	indexSet, err := convertIntArray(arg[2:])
 	if err != nil {
-		record.Error("convert string to number:", err)
+		record.Error("parse command line args:", err)
 	}
 
 	newCoordinate := save.Coordinate{
-		X: numberList[1],
-		Y: numberList[2],
+		X: indexSet[1],
+		Y: indexSet[2],
 	}
 
-	if numberList[0] < 0 || numberList[0] >= len(config.Dimension[arg[1]].Simple) {
-		record.Error("number out of range:", numberList[0])
+	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[arg[1]].Simple) {
+		record.Error("index out of range:", indexSet[0])
 	}
 
-	config.Dimension[arg[1]].Simple[numberList[0]] = newCoordinate
+	config.Dimension[arg[1]].Simple[indexSet[0]] = newCoordinate
 
 	err = saveConfig()
 	if err != nil {

@@ -29,6 +29,7 @@ var (
 		"help":        help,
 		"add-dms":     addDms,
 		"del-dms":     delDms,
+		"mod-dms":     modDms,
 		"list":        list,
 		"list-range":  listRange,
 		"list-simple": listSimple,
@@ -50,6 +51,7 @@ var (
 		"run":         true,
 		"add-dms":     true,
 		"del-dms":     true,
+		"mod-dms":     true,
 		"list":        true,
 		"list-range":  true,
 		"list-simple": true,
@@ -105,7 +107,7 @@ func main() {
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
 	function, ok := cmdMap[arg[0]]
 	if !ok {
-		record.Error(errors.New("'" + arg[0] + "' command not found."))
+		record.Error(errors.New("'" + arg[0] + "' command not found"))
 	}
 
 	function()
@@ -131,35 +133,26 @@ backup command:
 
 config command:
 
-	the config file is loaded before the command runs, and written back
-	after it finished. dimension is a namespace id like
-	"minecraft:overworld". indices are 0-based, as shown by the list
-	commands. the mod commands reject an index that is not in the list,
-	while the delete commands skip one.
-
-	add-dms <dimension>
-		add a dimension with the default range rule.
-
-	del-dms <dimension>
-		delete a dimension.
-
 	list
 		list all dimension rules and file rules.
+
+	list-config <dimension>...
+		list both range rules and simple rules of a dimension.
 
 	list-dms
 		list dimension namespace ids.
 
-	list-range <dimension>
+	add-dms <dimension>...
+		add a dimension with the default range rule.
+
+	del-dms <dimension>...
+		delete a dimension.
+
+	mod-dms <old_dimension> <new_dimension>
+		rename a dimension, keeping its rules.
+
+	list-range <dimension>...
 		list range rules of a dimension.
-
-	list-simple <dimension>
-		list simple rules of a dimension.
-
-	list-config <dimension>
-		list both range rules and simple rules of a dimension.
-
-	list-file
-		list file rules.
 
 	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
 		add a range rule to a dimension.
@@ -170,6 +163,9 @@ config command:
 	mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
 		replace the range rule at the given index.
 
+	list-simple <dimension>...
+		list simple rules of a dimension.
+
 	add-simple <dimension> <x> <y>
 		add a simple rule to a dimension.
 
@@ -179,7 +175,10 @@ config command:
 	mod-simple <dimension> <index> <x> <y>
 		replace the simple rule at the given index.
 
-	add-file <name> [name...]
+	list-file
+		list file rules.
+
+	add-file <name>...
 		add one or more file rules.
 
 	del-file <index>...
@@ -203,17 +202,17 @@ options:
 }
 
 func initProgram() {
-	flag.StringVar(&configFilePath, "c", configFilePath, "config file path.")
-	flag.BoolFunc("l", "legacy world mode.", func(s string) error {
+	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
+	flag.BoolFunc("l", "legacy world mode", func(s string) error {
 		useLegacyMode = true
 		return nil
 	})
-	flag.BoolVar(&record.EnableColor, "color", false, "enable color output.")
+	flag.BoolVar(&record.EnableColor, "color", false, "enable color output")
 	flag.Parse()
 	arg = flag.Args()
 
 	if len(arg) == 0 {
-		record.Error(errors.New("command is missing."))
+		record.Error(errors.New("command is missing"))
 	}
 
 	if ok, _ := loadConfigCmd[arg[0]]; ok {
@@ -312,10 +311,12 @@ func run() {
 
 func addDms() {
 	if len(arg) < 2 {
-		record.Error("dimension namespace id is missing.")
+		record.Error("syntax error, usage: mc-saver add-dms <dimension>...")
 	}
 
-	config.Dimension[arg[1]] = defaultDimensionConfig
+	for _, v := range arg[1:] {
+		config.Dimension[v] = defaultDimensionConfig
+	}
 
 	err := saveConfig()
 	if err != nil {
@@ -325,9 +326,32 @@ func addDms() {
 
 func delDms() {
 	if len(arg) < 2 {
-		record.Error("dimension namespace id is missing.")
+		record.Error("syntax error, usage: mc-saver del-dms <dimension>...")
 	}
 
+	for _, v := range arg[1:] {
+		delete(config.Dimension, v)
+	}
+	err := saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
+	}
+}
+
+func modDms() {
+	if len(arg) < 3 {
+		record.Error("syntax error, usage: mc-saver mod-dms <old_dimension> <dimension>")
+	}
+
+	if _, ok := config.Dimension[arg[1]]; !ok {
+		record.Error(arg[1]+":", "dimension not found")
+	}
+
+	if arg[1] == arg[2] {
+		record.Error("dimension no change")
+	}
+
+	config.Dimension[arg[2]] = config.Dimension[arg[1]]
 	delete(config.Dimension, arg[1])
 
 	err := saveConfig()
@@ -336,44 +360,11 @@ func delDms() {
 	}
 }
 
-func listRange() {
-	if len(arg) < 2 {
-		record.Error("dimension is missing.")
-	}
-
-	if dimension, ok := config.Dimension[arg[1]]; ok {
-		if len(dimension.Range) == 0 {
-			fmt.Printf("no range config for %v.\n", arg[1])
-		}
-		for i, v := range dimension.Range {
-			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
-		}
-	} else {
-		record.Error(arg[1]+":", "dimension not found.")
-	}
-}
-
-func listSimple() {
-	if len(arg) < 2 {
-		record.Error("dimension is missing.")
-	}
-
-	if dimension, ok := config.Dimension[arg[1]]; ok {
-		if len(dimension.Simple) == 0 {
-			fmt.Printf("no simple config for %v.\n", arg[1])
-		}
-		for i, v := range dimension.Simple {
-			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
-		}
-	} else {
-		record.Error(arg[1]+":", "dimension not found.")
-	}
-}
-
 func listConfig() {
 	if len(arg) < 2 {
-		record.Error("dimension is missing.")
+		record.Error("syntax error, usage: mc-saver list-config <dimension>...")
 	}
+
 	fmt.Printf("range config for %v:\n", arg[1])
 	listRange()
 	fmt.Printf("simple config for %v:\n", arg[1])
@@ -382,13 +373,13 @@ func listConfig() {
 
 func list() {
 	if len(config.Dimension) == 0 {
-		fmt.Println("no dimension config at all.")
+		fmt.Println("no dimension config at all")
 	}
 
 	for id, rule := range config.Dimension {
 		fmt.Printf("range config for %v:\n", id)
 		if len(rule.Range) == 0 {
-			fmt.Printf("no range config for %v.\n", id)
+			fmt.Printf("no range config for %v\n", id)
 		}
 		for i, v := range rule.Range {
 			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
@@ -396,7 +387,7 @@ func list() {
 
 		fmt.Printf("simple config for %v:\n", id)
 		if len(rule.Simple) == 0 {
-			fmt.Printf("no simple config for %v.\n", id)
+			fmt.Printf("no simple config for %v\n", id)
 		}
 		for i, v := range rule.Simple {
 			fmt.Printf("- %v: (%v, %v)\n", i, v.X, v.Y)
@@ -405,15 +396,6 @@ func list() {
 
 	fmt.Println("file config:")
 	listFile()
-}
-
-func listFile() {
-	if len(config.File) == 0 {
-		fmt.Println("no file config.")
-	}
-	for i, v := range config.File {
-		fmt.Printf("- %v: %q\n", i, v)
-	}
 }
 
 func listDms() {

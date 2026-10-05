@@ -72,7 +72,13 @@ func isExtKeyWord(char rune) bool {
 	}
 }
 
-func delSliceElement[T comparable](arr []T, index ...int) []T {
+func deleteSliceElements[T comparable](arr []T, index ...int) ([]T, error) {
+	for _, v := range index {
+		if v < 0 || v >= len(arr) {
+			return nil, fmt.Errorf("index out of range: %v", v)
+		}
+	}
+
 	var newArr []T
 	for n, e := range arr {
 		canAppend := true
@@ -86,7 +92,8 @@ func delSliceElement[T comparable](arr []T, index ...int) []T {
 			newArr = append(newArr, e)
 		}
 	}
-	return newArr
+
+	return newArr, nil
 }
 
 func convertIntArray(array []string) ([]int, error) {

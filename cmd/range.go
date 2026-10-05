@@ -1,18 +1,41 @@
 package main
 
 import (
-	"acovia.net/record"
 	"acovia.net/minecraft/save"
+	"acovia.net/record"
+	"fmt"
 )
 
+func listRange() {
+	if len(arg) < 2 {
+		record.Error("syntax error, usage: mc-saver list-range <dimension>...")
+	}
+
+	_, ok := config.Dimension[arg[1]]
+	if !ok {
+		record.Error(arg[1]+":", "dimension not found")
+	}
+
+	for _, id := range arg[1:] {
+		rangeConfig := config.Dimension[id].Range
+		if len(rangeConfig) == 0 {
+			fmt.Printf("no range config for %v\n", id)
+			continue
+		}
+		for i, v := range rangeConfig {
+			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
+		}
+	}
+}
+
 func addRange() {
-	if len(arg) < 6{
+	if len(arg) < 6 {
 		record.Error("syntax error, usage: mc-saver add-range <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
 	numberList, err := convertIntArray(arg[2:])
 	if err != nil {
-		record.Error("convert string to number:", err)
+		record.Error("parse command line args:", err)
 	}
 
 	newRangeConfig := save.RangeConfig{
@@ -39,16 +62,24 @@ func addRange() {
 func delRange() {
 
 	if len(arg) < 3 {
-		record.Error("syntax error, usage: mc-saver del-range <dimension> <number> [number]...")
+		record.Error("syntax error, usage: mc-saver del-range <dimension> <number>...")
+	}
+
+	_, ok := config.Dimension[arg[1]]
+	if !ok {
+		record.Error(arg[1]+":", "dimension not found")
 	}
 
 	delList, err := convertIntArray(arg[2:])
 	if err != nil {
-		record.Error("convert string to number:", err)
+		record.Error("parse command line args:", err)
 	}
 
 	dimension, _ := config.Dimension[arg[1]]
-	dimension.Range = delSliceElement(dimension.Range, delList...)
+	dimension.Range, err = deleteSliceElements(dimension.Range, delList...)
+	if err != nil {
+		record.Error("delete element:", err)
+	}
 
 	config.Dimension[arg[1]] = dimension
 
@@ -63,9 +94,14 @@ func modRange() {
 		record.Error("syntax error, usage: mc-saver mod-range <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
 
+	_, ok := config.Dimension[arg[1]]
+	if !ok {
+		record.Error(arg[1]+":", "dimension not found")
+	}
+
 	numberList, err := convertIntArray(arg[2:])
 	if err != nil {
-		record.Error("convert string to number", err)
+		record.Error("parse command line args:", err)
 	}
 
 	if numberList[0] < 0 || numberList[0] >= len(config.Dimension[arg[1]].Range) {
