@@ -2,8 +2,6 @@
 
 A Minecraft world backup tool written in Go. Based on a JSON rule file, it packs the *selected parts* of a world save — chunk region files and core data files — into a dated ZIP archive.
 
-中文版：[README.zh-CN.md](README.zh-CN.md)
-
 ## Features
 
 - **Selective backups** — back up only dimensions and chunks that you care about instead of the whole world, so archives are smaller and faster.
