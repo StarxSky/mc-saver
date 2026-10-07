@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"acovia.net/minecraft/save"
@@ -48,22 +49,26 @@ func initProgram() {
 	cmd = args[0]
 }
 
-func initConfig() {
+func initWorldConfig() {
 	var err error
+	initConfigFilePath()
 	config, err = save.LoadConfig(configFilePath)
 	if err != nil {
 		record.Error("load config:", err)
 	}
 }
 
+func initConfigFilePath() {
+	worldDirPath = subCmdArgs[0]
+	configFilePath = path.Join(worldDirPath, configFileName)
+}
+
 func gencfg() {
 	if len(subCmdArgs) < 1 {
-		record.Error("syntax error, usage: mc-saver run <world> [output]")
+		record.Error("syntax error, usage: mc-saver gencfg <world>")
 	}
 
-	if len(subCmdArgs) > 1 {
-		configFilePath = subCmdArgs[1]
-	}
+	initConfigFilePath()
 
 	if useLegacyMode {
 		defaultConfig.File = []string{
@@ -95,7 +100,7 @@ func gencfg() {
 func run() {
 	var err error
 	if len(subCmdArgs) < 1 {
-		record.Error("syntax error, usage: mc-saver rub <world> [output]")
+		record.Error("syntax error, usage: mc-saver run <world> [output]")
 	}
 
 	if len(subCmdArgs) > 1 {
@@ -105,6 +110,7 @@ func run() {
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
 	outputPath = strings.ReplaceAll(outputPath, "\\", "/")
 
+	initWorldConfig()
 	root, err = os.OpenRoot(worldDirPath)
 	if err != nil {
 		record.Error("open world directory:", err)
@@ -115,7 +121,6 @@ func run() {
 		record.Error("init zip writer:", err)
 	}
 
-	initConfig()
 	if useLegacyMode {
 		if err := save.SaveOldAllFile(root, config, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
@@ -140,7 +145,7 @@ func addDms() {
 		record.Error("syntax error, usage: mc-saver add-dms <world> <dimension>...")
 	}
 
-	initConfig()
+	initWorldConfig()
 	for _, v := range subCmdArgs[1:] {
 		_, ok := config.Dimension[v]
 		if ok {
@@ -161,7 +166,7 @@ func delDms() {
 		record.Error("syntax error, usage: mc-saver del-dms <world> <dimension>...")
 	}
 
-	initConfig()
+	initWorldConfig()
 	for _, v := range subCmdArgs[1:] {
 		_, ok := config.Dimension[v]
 		if !ok {
@@ -182,7 +187,7 @@ func modDms() {
 		record.Error("syntax error, usage: mc-saver mod-dms <world> <old_dimension> <dimension>")
 	}
 
-	initConfig()
+	initWorldConfig()
 	if _, ok := config.Dimension[subCmdArgs[1]]; !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")
 	}
@@ -210,10 +215,10 @@ func listConfig() {
 
 func list() {
 	if len(subCmdArgs) < 1 {
-		record.Error("syntax error, usage: mc-saver list-config <world> <dimension>...")
+		record.Error("syntax error, usage: mc-saver list <world>")
 	}
 
-	initConfig()
+	initWorldConfig()
 	if len(config.Dimension) == 0 {
 		fmt.Println("no dimension config at all")
 	}
@@ -241,7 +246,11 @@ func list() {
 }
 
 func listDms() {
-	initConfig()
+	if len(subCmdArgs) < 1 {
+		record.Error("syntax error, usage: mc-saver list-dms <world>")
+	}
+
+	initWorldConfig()
 	for id := range config.Dimension {
 		fmt.Printf("- %v\n", id)
 	}

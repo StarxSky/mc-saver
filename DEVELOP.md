@@ -29,6 +29,16 @@ go build -o mc-saver ./cmd
 Patterns resolve per module: use `go build ./cmd` or `go vet ./cmd/...`. A bare
 `./...` from the root does not match anything, because the root is not itself a module.
 
+## CLI shape
+
+```
+mc-saver [-l] [-color] <command> <world> [args...]
+```
+
+The world directory is the first argument of every command, and the rule file is
+`<world>/saver.json`. `initProgram` resolves the command; each command then resolves its
+own target and loads the rule file through `initWorld`.
+
 ## Release
 
 1. `bash build.sh` — compiles 6 targets (linux / darwin / windows × amd64 / arm64) and
@@ -45,17 +55,23 @@ There is no automated test suite yet; smoke-test the commands by hand before tag
 - Returned errors are lowercase, carry no punctuation, and wrap the cause with `%w`:
   `fmt.Errorf("open file: %w", err)`.
 - Version tags use a `v` prefix (`v1.2.0`).
-- Commands validate every argument before touching the config: an out-of-range index
-  aborts the command and leaves the config file unchanged.
+- Commands validate their arguments before loading the config, and validate every index
+  before touching it: an out-of-range index aborts the command and leaves the file unchanged.
 
 ## Not a bug
 
 Intentional behaviours, in case they look like defects:
 
+- The rule file is not created implicitly: any command other than `gencfg` and `help`
+  fails when `<world>/saver.json` is missing. `gencfg <world>` is the only way to create it.
+- Everything named in the rule file must exist in the world. A configured dimension whose
+  `dimensions/<namespace>/<id>` directory is missing, or a `file` entry that is missing,
+  aborts the whole backup instead of being skipped — silently skipping would hide a stale
+  config or a typo. Missing *region* files inside an existing directory are skipped with a
+  warning, because those are world content rather than declared input.
 - `-l` and `-color` are switches; `-l=false` is not part of the interface.
 - The config file format is not backward compatible — regenerate it with `gencfg` after
   upgrading.
-- A missing config file is created automatically, except for `help` and `gencfg`.
 - A region listed more than once in the config (duplicate or overlapping rules, or a
   `range` and a `simple` covering the same region) is added to the archive once per
   occurrence, so the archive can contain duplicate entries.

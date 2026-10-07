@@ -12,6 +12,7 @@ func listRange() {
 		record.Error("syntax error, usage: mc-saver list-range <world> <dimension>...")
 	}
 
+	initWorldConfig()
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")
@@ -35,6 +36,7 @@ func addRange() {
 		record.Error("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
+	initWorldConfig()
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
 		record.Error("parse command line args:", err)
@@ -66,6 +68,7 @@ func delRange() {
 		record.Error("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
 	}
 
+	initWorldConfig()
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")
@@ -95,6 +98,7 @@ func modRange() {
 		record.Error("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
 
+	initWorldConfig()
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")

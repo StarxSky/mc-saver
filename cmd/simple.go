@@ -12,6 +12,7 @@ func listSimple() {
 		record.Error("syntax error, usage: mc-saver list-simple <world> <dimension>...")
 	}
 
+	initWorldConfig()
 	for _, id := range subCmdArgs[1:] {
 		_, ok := config.Dimension[id]
 		if !ok {
@@ -35,6 +36,7 @@ func addSimple() {
 		record.Error("syntax error, usage: mc-saver add-simple <world> <dimension> <x> <y>")
 	}
 
+	initWorldConfig()
 	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
 		record.Error("parse command line args:", err)
@@ -61,6 +63,7 @@ func delSimple() {
 		record.Error("syntax error, usage: mc-saver del-simple <world> <dimension> <number>...")
 	}
 
+	initWorldConfig()
 	dimension, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")
@@ -91,6 +94,7 @@ func modSimple() {
 		record.Error("syntax error, usage: mc-saver mod-simple <world> <dimension> <number> <x> <y>")
 	}
 
+	initWorldConfig()
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")

@@ -14,7 +14,7 @@ import (
 
 func initZipWriter() (*zip.Writer, *os.File, func(error) error, error) {
 
-	archiveFilePath, err := formatOutPutPath(outputPath)
+	archiveFilePath, err := formatOutputPath(outputPath)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("format output path: %v", err)
 	}

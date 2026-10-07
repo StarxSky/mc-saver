@@ -16,17 +16,19 @@ Download a prebuilt binary from the [Releases](https://github.com/fovlin/mc-save
 ## Usage
 
 ```
-mc-saver [-c <config file>] [-l] [-color] <command> [args...]
+mc-saver [-l] [-color] <command> <world> [args...]
 ```
 
-Flags must be written before the subcommand; everything after it is a positional argument.
+Every command takes the world directory as its first argument; the rule file is read from `<world>/saver.json`. Flags, if any, go before the command.
 
 ```bash
-mc-saver gencfg                           # write a default save-rule.json
-mc-saver run                              # back up ./world into a dated zip in .
-mc-saver -c config.json run level out.zip # explicit config, world directory and output
-mc-saver -l run                           # legacy worlds (before 1.21.11)
+mc-saver gencfg /srv/minecraft/world           # write the default rule file
+mc-saver run /srv/minecraft/world backup.zip   # back it up
+mc-saver list-dms /srv/minecraft/world         # inspect the rules
+mc-saver -l run /srv/minecraft/old-world out.zip   # legacy worlds (before 1.21.11)
 ```
+
+The rule file must exist before any command other than `gencfg` and `help`; create it with `gencfg`.
 
 ### Commands
 
@@ -34,48 +36,47 @@ Backup and utility:
 
 | Command | Description |
 | --- | --- |
-| `run [world] [output]` | Back up a world. Defaults: `world` and `.`. |
-| `gencfg [config file]` | Write a default config (default `save-rule.json`); fails if the file already exists. |
+| `run <world> [output]` | Back up a world. Output defaults to `.`, where a dated zip is created. |
+| `gencfg <world>` | Write the default rule file to `<world>/saver.json`; fails if it already exists. |
 | `help` | Print the built-in usage text. |
 
-Config commands load the config file before running and write it back afterwards.
+Config commands write the rule file back after they run:
 
 | Command | Description |
 | --- | --- |
-| `list` | Print every dimension rule, then the file rules. |
-| `list-config <dimension>...` | Print both the range and the simple rules. |
-| `list-dms` | Print the dimension ids. |
-| `add-dms <dimension>...` | Add dimensions with the default range rule (`-1,-1` to `0,0`). |
-| `del-dms <dimension>...` | Delete dimensions. |
-| `mod-dms <old> <new>` | Rename a dimension, keeping its rules. |
-| `list-range <dimension>...` | Print the range rules, with their indices. |
-| `add-range <dimension> <from_x> <from_y> <to_x> <to_y>` | Append a rectangular range rule. |
-| `del-range <dimension> <index>...` | Delete the range rules at `<index>...`. |
-| `mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>` | Replace the range rule at `<index>`. |
-| `list-simple <dimension>...` | Print the simple rules, with their indices. |
-| `add-simple <dimension> <x> <y>` | Append a single region. |
-| `del-simple <dimension> <index>...` | Delete the simple rules at `<index>...`. |
-| `mod-simple <dimension> <index> <x> <y>` | Replace the simple rule at `<index>`. |
-| `list-file` | Print the file rules, with their indices. |
-| `add-file <name>...` | Append one or more file rules. |
-| `del-file <index>...` | Delete the file rules at `<index>...`. |
-| `mod-file <index> <name>` | Replace the file rule at `<index>`. |
+| `list <world>` | Print every dimension rule, then the file rules. |
+| `list-config <world> <dimension>...` | Print both the range and the simple rules of a dimension. |
+| `list-dms <world>` | Print the dimension ids. |
+| `add-dms <world> <dimension>...` | Add dimensions with the default range rule (`-1,-1` to `0,0`). |
+| `del-dms <world> <dimension>...` | Delete dimensions. |
+| `mod-dms <world> <old> <new>` | Rename a dimension, keeping its rules. |
+| `list-range <world> <dimension>...` | Print the range rules, with their indices. |
+| `add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>` | Append a rectangular range rule. |
+| `del-range <world> <dimension> <index>...` | Delete the range rules at `<index>...`. |
+| `mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>` | Replace the range rule at `<index>`. |
+| `list-simple <world> <dimension>...` | Print the simple rules, with their indices. |
+| `add-simple <world> <dimension> <x> <y>` | Append a single region. |
+| `del-simple <world> <dimension> <index>...` | Delete the simple rules at `<index>...`. |
+| `mod-simple <world> <dimension> <index> <x> <y>` | Replace the simple rule at `<index>`. |
+| `list-file <world>` | Print the file rules, with their indices. |
+| `add-file <world> <name>...` | Append one or more file rules. |
+| `del-file <world> <index>...` | Delete the file rules at `<index>...`. |
+| `mod-file <world> <index> <name>` | Replace the file rule at `<index>`. |
 
 A `<dimension>` is a namespace id like `minecraft:overworld`. `add-range` and `add-simple` create the dimension if it does not exist yet; the other dimension commands report an error instead.
 
-Indices are 0-based, as printed by the `list*` commands, and refer to the list as it is before the command runs — so several rules can be changed in one call. An index outside the list is an error for both `mod-*` and `del-*`; nothing is written in that case.
+Indices are 0-based, as printed by the `list*` commands, and refer to the list as it is before the command runs. An index outside the list is an error; nothing is written in that case.
 
 ### Flags
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `-c` | `save-rule.json` | Path to the JSON rule file. |
-| `-l` | off | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`). Also makes `gencfg` write a legacy-friendly `file` list. |
-| `-color` | off | Enable colored output. |
+| Flag | Description |
+| --- | --- |
+| `-l` | Back up using the legacy single-folder layout (`DIM-1`/`DIM1`), for worlds from before 1.21.11. Also makes `gencfg` write a legacy-friendly `file` list. |
+| `-color` | Enable colored output. |
 
 ## Configuration
 
-The rule file has two top-level fields: `dimension` and `file`. Maintain it with the commands above; hand-editing is **not recommended**, because a misspelled field name is silently ignored and can quietly drop rules from the backup.
+The rule file lives inside the world directory as `saver.json`, and has two top-level fields: `dimension` and `file`. Maintain it with the commands above — hand-editing is **not recommended**, because a misspelled field name is silently ignored.
 
 ```json
 {
@@ -131,7 +132,7 @@ Keyed by dimension namespace id. Each dimension takes either or both of:
 - **`range`** — rectangles, inclusive: every region between `from` and `to` is backed up.
 - **`simple`** — individual regions, for the few that fall outside your rectangles.
 
-`x`/`y` are Minecraft's region indices (`r.<x>.<y>.mca`); one region covers 512×512 blocks. A region listed more than once — by overlapping `range` rules, or by a `range` and a `simple` — is written to the archive once per occurrence.
+`x`/`y` are Minecraft's region indices (`r.<x>.<y>.mca`); one region covers 512×512 blocks.
 
 ### `file`
 
@@ -139,5 +140,6 @@ Files or folders at the world root. Files are added as-is; folders are walked re
 
 ## Notes
 
-- Every command except `help` and `gencfg` loads the config first; if the file is missing, an empty one is created automatically.
-- Legacy worlds: `gencfg -l` writes a legacy-friendly `file` list. For an existing config, adjust it with `add-file` / `del-file` (`players` → `playerdata`, plus `advancements`).
+- Everything named in the rule file must exist in the world: a configured dimension without its `dimensions/<namespace>/<id>` directory, or a `file` entry that is missing, aborts the whole backup instead of being skipped. That is deliberate — otherwise a typo or a stale rule would silently produce an incomplete archive. Remove what you don't have with `del-dms` / `del-file`.
+- A region listed more than once — by overlapping `range` rules, or by a `range` and a `simple` — is added to the archive once per occurrence.
+- Legacy worlds: `gencfg -l <world>` writes a legacy-friendly `file` list (`playerdata` instead of `players`, plus `advancements`).

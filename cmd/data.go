@@ -17,7 +17,6 @@ var (
 	cmd            string
 	config         save.Config = save.NullConfig
 	configFilePath string
-	argConfigPath  string
 	subCmdArgs     []string
 
 	useLegacyMode  bool   = false
@@ -80,17 +79,19 @@ var (
 		},
 	}
 
-	helpInfo = `mc-saver [-c <config_file>] [-l] [-color] <command> [args...]
+	helpInfo = `mc-saver [-l] [-color] <command> <world> [args...]
+
+every command takes the world directory as its first argument, and the rule
+file is read from <world>/saver.json. run "gencfg <world>" first to create it.
 
 backup command:
 
-	run [world_path] [output_path]
-		start the backup according to the config file.
-		the first path is world path, default is "world".
-		second path is output path, default is "world-$time.zip".
+	run <world> [output]
+		back up <world> according to <world>/saver.json.
+		output defaults to ".", where a dated zip is created.
 
-	gencfg [config_file]
-		generate a default config file, default is "save-rule.json".
+	gencfg <world>
+		write the default rule file to <world>/saver.json.
 		throw error if the file is already existed.
 
 	help
@@ -98,64 +99,64 @@ backup command:
 
 config command:
 
-	list
+	indices are 0-based, as shown by the list commands. an index outside the
+	list is an error for both the mod and the delete commands.
+
+	list <world>
 		list all dimension rules and file rules.
 
-	list-config <dimension>...
+	list-config <world> <dimension>...
 		list both range rules and simple rules of a dimension.
 
-	list-dms
+	list-dms <world>
 		list dimension namespace ids.
 
-	add-dms <dimension>...
+	add-dms <world> <dimension>...
 		add a dimension with the default range rule.
 
-	del-dms <dimension>...
+	del-dms <world> <dimension>...
 		delete a dimension.
 
-	mod-dms <old_dimension> <new_dimension>
+	mod-dms <world> <old_dimension> <new_dimension>
 		rename a dimension, keeping its rules.
 
-	list-range <dimension>...
+	list-range <world> <dimension>...
 		list range rules of a dimension.
 
-	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
+	add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>
 		add a range rule to a dimension.
 
-	del-range <dimension> <index>...
+	del-range <world> <dimension> <index>...
 		delete the range rules of the given indices.
 
-	mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
+	mod-range <world> <dimension> <index> <from_x> <from_y> <to_x> <to_y>
 		replace the range rule at the given index.
 
-	list-simple <dimension>...
+	list-simple <world> <dimension>...
 		list simple rules of a dimension.
 
-	add-simple <dimension> <x> <y>
+	add-simple <world> <dimension> <x> <y>
 		add a simple rule to a dimension.
 
-	del-simple <dimension> <index>...
+	del-simple <world> <dimension> <index>...
 		delete the simple rules of the given indices.
 
-	mod-simple <dimension> <index> <x> <y>
+	mod-simple <world> <dimension> <index> <x> <y>
 		replace the simple rule at the given index.
 
-	list-file
+	list-file <world>
 		list file rules.
 
-	add-file <name>...
+	add-file <world> <name>...
 		add one or more file rules.
 
-	del-file <index>...
+	del-file <world> <index>...
 		delete the file rules of the given indices.
 
-	mod-file <index> <name>
+	mod-file <world> <index> <name>
 		replace the file rule at the given index.
 
 options:
-
-	-c <path>
-		specify the config file, default is "save-rule.json".
 
 	-l
 		legacy world mode, for worlds from before 1.21.11.
@@ -165,7 +166,7 @@ options:
 `
 )
 
-func formatOutPutPath(archiveFilePath string) (string, error) {
+func formatOutputPath(archiveFilePath string) (string, error) {
 
 	worldAbsPath, err := filepath.Abs(archiveFilePath)
 	if err != nil {
@@ -269,13 +270,6 @@ func convertIntArray(array []string) ([]int, error) {
 		intList = append(intList, int(number))
 	}
 	return intList, nil
-}
-
-func loadConfigFilePath() string {
-	if len(argConfigPath) == 0 {
-		return path.Join(worldDirPath, configFileName)
-	}
-	return argConfigPath
 }
 
 func loadSubCmdArgs() []string {
