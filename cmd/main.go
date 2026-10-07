@@ -14,195 +14,24 @@ import (
 	"acovia.net/record"
 )
 
-var (
-	arg    []string
-	config save.Config = save.NullConfig
-
-	useLegacyMode  bool   = false
-	configFilePath string = "save-rule.json"
-	worldDirPath   string = "world"
-	outputPath     string = "."
-
-	cmdMap map[string]func() = map[string]func(){
-		"run":         run,
-		"gencfg":      gencfg,
-		"help":        help,
-		"add-dms":     addDms,
-		"del-dms":     delDms,
-		"mod-dms":     modDms,
-		"list":        list,
-		"list-range":  listRange,
-		"list-simple": listSimple,
-		"list-config": listConfig,
-		"list-dms":    listDms,
-		"list-file":   listFile,
-		"add-range":   addRange,
-		"del-range":   delRange,
-		"mod-range":   modRange,
-		"add-simple":  addSimple,
-		"del-simple":  delSimple,
-		"mod-simple":  modSimple,
-		"add-file":    addFile,
-		"del-file":    delFile,
-		"mod-file":    modFile,
-	}
-
-	loadConfigCmd map[string]bool = map[string]bool{
-		"run":         true,
-		"add-dms":     true,
-		"del-dms":     true,
-		"mod-dms":     true,
-		"list":        true,
-		"list-range":  true,
-		"list-simple": true,
-		"list-config": true,
-		"list-dms":    true,
-		"list-file":   true,
-		"add-range":   true,
-		"del-range":   true,
-		"mod-range":   true,
-		"add-simple":  true,
-		"del-simple":  true,
-		"mod-simple":  true,
-		"add-file":    true,
-		"del-file":    true,
-		"mod-file":    true,
-	}
-
-	root *os.Root
-
-	defaultDimensionConfig = save.DimensionConfig{
-		Range: []save.RangeConfig{
-			{
-				From: save.Coordinate{
-					X: -1,
-					Y: -1,
-				},
-				To: save.Coordinate{
-					X: 0,
-					Y: 0,
-				},
-			},
-		},
-	}
-
-	defaultConfig = save.Config{
-		Dimension: map[string]save.DimensionConfig{
-			"minecraft:overworld":  defaultDimensionConfig,
-			"minecraft:the_nether": defaultDimensionConfig,
-			"minecraft:the_end":    defaultDimensionConfig,
-		},
-		File: []string{
-			"level.dat",
-			"data",
-			"datapacks",
-			"players",
-		},
-	}
-)
-
 func main() {
 	initProgram()
 
 	configFilePath = strings.ReplaceAll(configFilePath, "\\", "/")
-	function, ok := cmdMap[arg[0]]
+	function, ok := cmdMap[cmd]
 	if !ok {
-		record.Error(errors.New("'" + arg[0] + "' command not found"))
+		record.Error(errors.New("'" + cmd + "' command not found"))
 	}
 
 	function()
 }
 
 func help() {
-	helpOutput :=
-		`mc-saver [-c <config_file>] [-l] [-color] <command> [args...]
-
-backup command:
-
-	run [world_path] [output_path]
-		start the backup according to the config file.
-		the first path is world path, default is "world".
-		second path is output path, default is "world-$time.zip".
-
-	gencfg [config_file]
-		generate a default config file, default is "save-rule.json".
-		throw error if the file is already existed.
-
-	help
-		print this help text.
-
-config command:
-
-	list
-		list all dimension rules and file rules.
-
-	list-config <dimension>...
-		list both range rules and simple rules of a dimension.
-
-	list-dms
-		list dimension namespace ids.
-
-	add-dms <dimension>...
-		add a dimension with the default range rule.
-
-	del-dms <dimension>...
-		delete a dimension.
-
-	mod-dms <old_dimension> <new_dimension>
-		rename a dimension, keeping its rules.
-
-	list-range <dimension>...
-		list range rules of a dimension.
-
-	add-range <dimension> <from_x> <from_y> <to_x> <to_y>
-		add a range rule to a dimension.
-
-	del-range <dimension> <index>...
-		delete the range rules of the given indices.
-
-	mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>
-		replace the range rule at the given index.
-
-	list-simple <dimension>...
-		list simple rules of a dimension.
-
-	add-simple <dimension> <x> <y>
-		add a simple rule to a dimension.
-
-	del-simple <dimension> <index>...
-		delete the simple rules of the given indices.
-
-	mod-simple <dimension> <index> <x> <y>
-		replace the simple rule at the given index.
-
-	list-file
-		list file rules.
-
-	add-file <name>...
-		add one or more file rules.
-
-	del-file <index>...
-		delete the file rules of the given indices.
-
-	mod-file <index> <name>
-		replace the file rule at the given index.
-
-options:
-
-	-c <path>
-		specify the config file, default is "save-rule.json".
-
-	-l
-		legacy world mode, for worlds from before 1.21.11.
-
-	-color
-		enable color output.
-`
-	fmt.Printf("%v", helpOutput)
+	fmt.Printf("%v", helpInfo)
 }
 
 func initProgram() {
-	flag.StringVar(&configFilePath, "c", configFilePath, "config file path")
+	flag.StringVar(&argConfigPath, "c", argConfigPath, "config file path")
 	flag.BoolFunc("l", "legacy world mode", func(s string) error {
 		useLegacyMode = true
 		return nil
@@ -211,11 +40,21 @@ func initProgram() {
 	flag.Parse()
 	arg = flag.Args()
 
-	if len(arg) == 0 {
+	if len(arg) < 2 {
 		record.Error(errors.New("command is missing"))
 	}
 
-	if ok, _ := loadConfigCmd[arg[0]]; ok {
+	cmd = arg[0]
+	worldDirPath = arg[1]
+	arg = arg[2:]
+
+	configFilePath = configPath()
+
+	initConfig()
+}
+
+func initConfig() {
+	if ok, _ := noInitConfigCmd[cmd]; !ok {
 		var err error
 		config, err = save.LoadConfig(configFilePath)
 		if os.IsNotExist(err) {
@@ -231,8 +70,8 @@ func initProgram() {
 }
 
 func gencfg() {
-	if len(arg) > 1 {
-		configFilePath = arg[1]
+	if len(arg) >= 1 {
+		configFilePath = arg[0]
 	}
 
 	if useLegacyMode {
@@ -262,19 +101,18 @@ func gencfg() {
 	os.Exit(0)
 }
 
-func run() {
+func saveWorld() {
 	var err error
 
-	if len(arg) > 1 {
-		if absPath, err := filepath.Abs(arg[1]); err != nil {
-			record.Error("load abs path:", err)
-		} else {
-			worldDirPath = absPath
-		}
+	absPath, err := filepath.Abs(worldDirPath)
+	if err != nil {
+		record.Error("load abs path:", err)
 	}
 
-	if len(arg) > 2 {
-		outputPath = path.Clean(flag.Arg(2))
+	worldDirPath = absPath
+
+	if len(arg) >= 1 {
+		outputPath = path.Clean(arg[0])
 	}
 
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
@@ -310,11 +148,11 @@ func run() {
 }
 
 func addDms() {
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver add-dms <dimension>...")
 	}
 
-	for _, v := range arg[1:] {
+	for _, v := range arg {
 		config.Dimension[v] = defaultDimensionConfig
 	}
 
@@ -325,11 +163,11 @@ func addDms() {
 }
 
 func delDms() {
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver del-dms <dimension>...")
 	}
 
-	for _, v := range arg[1:] {
+	for _, v := range arg {
 		delete(config.Dimension, v)
 	}
 	err := saveConfig()
@@ -339,20 +177,20 @@ func delDms() {
 }
 
 func modDms() {
-	if len(arg) < 3 {
+	if len(arg) < 2 {
 		record.Error("syntax error, usage: mc-saver mod-dms <old_dimension> <dimension>")
 	}
 
-	if _, ok := config.Dimension[arg[1]]; !ok {
+	if _, ok := config.Dimension[arg[0]]; !ok {
 		record.Error(arg[1]+":", "dimension not found")
 	}
 
-	if arg[1] == arg[2] {
+	if arg[0] == arg[1] {
 		record.Error("dimension no change")
 	}
 
-	config.Dimension[arg[2]] = config.Dimension[arg[1]]
-	delete(config.Dimension, arg[1])
+	config.Dimension[arg[1]] = config.Dimension[arg[0]]
+	delete(config.Dimension, arg[0])
 
 	err := saveConfig()
 	if err != nil {
@@ -361,13 +199,12 @@ func modDms() {
 }
 
 func listConfig() {
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver list-config <dimension>...")
 	}
-
-	fmt.Printf("range config for %v:\n", arg[1])
+	fmt.Printf("range config for %v:\n", arg)
 	listRange()
-	fmt.Printf("simple config for %v:\n", arg[1])
+	fmt.Printf("simple config for %v:\n", arg)
 	listSimple()
 }
 

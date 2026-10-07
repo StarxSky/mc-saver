@@ -7,16 +7,16 @@ import (
 )
 
 func listRange() {
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver list-range <dimension>...")
 	}
 
-	_, ok := config.Dimension[arg[1]]
+	_, ok := config.Dimension[arg[0]]
 	if !ok {
-		record.Error(arg[1]+":", "dimension not found")
+		record.Error(arg[0]+":", "dimension not found")
 	}
 
-	for _, id := range arg[1:] {
+	for _, id := range arg {
 		rangeConfig := config.Dimension[id].Range
 		if len(rangeConfig) == 0 {
 			fmt.Printf("no range config for %v\n", id)
@@ -29,11 +29,11 @@ func listRange() {
 }
 
 func addRange() {
-	if len(arg) < 6 {
+	if len(arg) < 5 {
 		record.Error("syntax error, usage: mc-saver add-range <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	numberList, err := convertIntArray(arg[2:])
+	numberList, err := convertIntArray(arg[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -49,9 +49,9 @@ func addRange() {
 		},
 	}
 
-	dimension, _ := config.Dimension[arg[1]]
+	dimension, _ := config.Dimension[arg[0]]
 	dimension.Range = append(dimension.Range, newRangeConfig)
-	config.Dimension[arg[1]] = dimension
+	config.Dimension[arg[0]] = dimension
 
 	err = saveConfig()
 	if err != nil {
@@ -61,27 +61,27 @@ func addRange() {
 
 func delRange() {
 
-	if len(arg) < 3 {
+	if len(arg) < 2 {
 		record.Error("syntax error, usage: mc-saver del-range <dimension> <number>...")
 	}
 
-	_, ok := config.Dimension[arg[1]]
+	_, ok := config.Dimension[arg[0]]
 	if !ok {
-		record.Error(arg[1]+":", "dimension not found")
+		record.Error(arg[0]+":", "dimension not found")
 	}
 
-	delList, err := convertIntArray(arg[2:])
+	delList, err := convertIntArray(arg[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
 
-	dimension, _ := config.Dimension[arg[1]]
+	dimension, _ := config.Dimension[arg[0]]
 	dimension.Range, err = deleteSliceElements(dimension.Range, delList...)
 	if err != nil {
 		record.Error("delete element:", err)
 	}
 
-	config.Dimension[arg[1]] = dimension
+	config.Dimension[arg[0]] = dimension
 
 	err = saveConfig()
 	if err != nil {
@@ -90,25 +90,25 @@ func delRange() {
 }
 
 func modRange() {
-	if len(arg) < 7 {
+	if len(arg) < 6 {
 		record.Error("syntax error, usage: mc-saver mod-range <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	_, ok := config.Dimension[arg[1]]
+	_, ok := config.Dimension[arg[0]]
 	if !ok {
-		record.Error(arg[1]+":", "dimension not found")
+		record.Error(arg[0]+":", "dimension not found")
 	}
 
-	numberList, err := convertIntArray(arg[2:])
+	numberList, err := convertIntArray(arg[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
 
-	if numberList[0] < 0 || numberList[0] >= len(config.Dimension[arg[1]].Range) {
+	if numberList[0] < 0 || numberList[0] >= len(config.Dimension[arg[0]].Range) {
 		record.Error("number out of range:", numberList[0])
 	}
 
-	config.Dimension[arg[1]].Range[numberList[0]] = save.RangeConfig{
+	config.Dimension[arg[0]].Range[numberList[0]] = save.RangeConfig{
 		From: save.Coordinate{
 			X: numberList[1],
 			Y: numberList[2],

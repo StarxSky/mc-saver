@@ -97,12 +97,12 @@ func saveFile(fileName string, zipWriter *zip.Writer) error {
 func saveConfig() error {
 	jsonData, err := json.MarshalIndent(config, "", "	")
 	if err != nil {
-		return fmt.Errorf("encode json:")
+		return fmt.Errorf("encode json: %w", err)
 	}
 
 	err = os.WriteFile(configFilePath, jsonData, 0644)
 	if err != nil {
-		return fmt.Errorf("write file:")
+		return fmt.Errorf("write file: %w", err)
 	}
 
 	return nil

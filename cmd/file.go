@@ -17,11 +17,11 @@ func listFile() {
 }
 
 func addFile() {
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver add-file <file_name>...")
 	}
 
-	config.File = append(config.File, arg[1:]...)
+	config.File = append(config.File, arg...)
 
 	err := saveConfig()
 	if err != nil {
@@ -31,11 +31,11 @@ func addFile() {
 
 func delFile() {
 
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver del-file <number>...")
 	}
 
-	indexSet, err := convertIntArray(arg[1:])
+	indexSet, err := convertIntArray(arg)
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -52,11 +52,11 @@ func delFile() {
 }
 
 func modFile() {
-	if len(arg) < 3 {
+	if len(arg) < 2 {
 		record.Error("syntax error, usage: mc-saver mod-file <number> <file_name>")
 	}
 
-	number, err := strconv.ParseInt(arg[1], 10, 64)
+	number, err := strconv.ParseInt(arg[0], 10, 64)
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -65,7 +65,7 @@ func modFile() {
 		record.Error("index out of range:", number)
 	}
 
-	config.File[number] = arg[2]
+	config.File[number] = arg[1]
 
 	err = saveConfig()
 	if err != nil {

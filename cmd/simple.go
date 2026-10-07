@@ -7,16 +7,16 @@ import (
 )
 
 func listSimple() {
-	if len(arg) < 2 {
+	if len(arg) < 1 {
 		record.Error("syntax error, usage: mc-saver list-simple <dimension>...")
 	}
 
-	_, ok := config.Dimension[arg[1]]
-	if !ok {
-		record.Error(arg[1]+":", "dimension not found")
-	}
+	for _, id := range arg {
+		_, ok := config.Dimension[id]
+		if !ok {
+			record.Error(id+":", "dimension not found")
+		}
 
-	for _, id := range arg[1:] {
 		simpleConfig := config.Dimension[id].Simple
 		if len(simpleConfig) == 0 {
 			fmt.Printf("no simple config for %v\n", id)
@@ -30,11 +30,11 @@ func listSimple() {
 
 func addSimple() {
 
-	if len(arg) < 4 {
+	if len(arg) < 3 {
 		record.Error("syntax error, usage: mc-saver add-simple <dimension> <x> <y>")
 	}
 
-	indexSet, err := convertIntArray(arg[2:])
+	indexSet, err := convertIntArray(arg[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -44,10 +44,10 @@ func addSimple() {
 		Y: indexSet[1],
 	}
 
-	dimension, _ := config.Dimension[arg[1]]
+	dimension, _ := config.Dimension[arg[0]]
 	dimension.Simple = append(dimension.Simple, newCoordinate)
 
-	config.Dimension[arg[1]] = dimension
+	config.Dimension[arg[0]] = dimension
 
 	err = saveConfig()
 	if err != nil {
@@ -56,18 +56,18 @@ func addSimple() {
 }
 
 func delSimple() {
-	if len(arg) < 3 {
+	if len(arg) < 2 {
 		record.Error("syntax error, usage: mc-saver del-simple <dimension> <number>...")
 	}
 
-	dimension, ok := config.Dimension[arg[1]]
+	dimension, ok := config.Dimension[arg[0]]
 	if !ok {
-		record.Error(arg[1]+":", "dimension not found")
+		record.Error(arg[0]+":", "dimension not found")
 	}
 
 	var indexSet []int
 
-	indexSet, err := convertIntArray(arg[2:])
+	indexSet, err := convertIntArray(arg[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -77,7 +77,7 @@ func delSimple() {
 		record.Error("delete element:", err)
 	}
 
-	config.Dimension[arg[1]] = dimension
+	config.Dimension[arg[0]] = dimension
 
 	err = saveConfig()
 	if err != nil {
@@ -86,16 +86,16 @@ func delSimple() {
 }
 
 func modSimple() {
-	if len(arg) < 5 {
+	if len(arg) < 4 {
 		record.Error("syntax error, usage: mc-saver mod-simple <dimension> <number> <x> <y>")
 	}
 
-	_, ok := config.Dimension[arg[1]]
+	_, ok := config.Dimension[arg[0]]
 	if !ok {
-		record.Error(arg[1]+":", "dimension not found")
+		record.Error(arg[0]+":", "dimension not found")
 	}
 
-	indexSet, err := convertIntArray(arg[2:])
+	indexSet, err := convertIntArray(arg[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -105,11 +105,11 @@ func modSimple() {
 		Y: indexSet[2],
 	}
 
-	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[arg[1]].Simple) {
+	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[arg[0]].Simple) {
 		record.Error("index out of range:", indexSet[0])
 	}
 
-	config.Dimension[arg[1]].Simple[indexSet[0]] = newCoordinate
+	config.Dimension[arg[0]].Simple[indexSet[0]] = newCoordinate
 
 	err = saveConfig()
 	if err != nil {
