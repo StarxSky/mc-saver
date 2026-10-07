@@ -38,18 +38,16 @@ func initProgram() {
 	})
 	flag.BoolVar(&record.EnableColor, "color", false, "enable color output")
 	flag.Parse()
-	arg = flag.Args()
+	args = flag.Args()
 
-	if len(arg) < 2 {
+	if len(args) < 1 {
 		record.Error(errors.New("command is missing"))
 	}
 
-	cmd = arg[0]
-	worldDirPath = arg[1]
-	arg = arg[2:]
+	cmd = args[0]
 
-	configFilePath = configPath()
-
+	initWorldDirPath()
+	initConfigFilePath()
 	initConfig()
 }
 
@@ -70,8 +68,12 @@ func initConfig() {
 }
 
 func gencfg() {
-	if len(arg) >= 1 {
-		configFilePath = arg[0]
+	if len(subCmdArgs) < 1 {
+		record.Error("syntax error, usage: mc-saver run <world> [output]")
+	}
+
+	if len(subCmdArgs) > 1 {
+		configFilePath = subCmdArgs[1]
 	}
 
 	if useLegacyMode {
@@ -111,8 +113,8 @@ func saveWorld() {
 
 	worldDirPath = absPath
 
-	if len(arg) >= 1 {
-		outputPath = path.Clean(arg[0])
+	if len(subCmdArgs) >= 3 {
+		outputPath = path.Clean(subCmdArgs[2])
 	}
 
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
@@ -148,11 +150,16 @@ func saveWorld() {
 }
 
 func addDms() {
-	if len(arg) < 1 {
-		record.Error("syntax error, usage: mc-saver add-dms <dimension>...")
+	if len(subCmdArgs) < 2 {
+		record.Error("syntax error, usage: mc-saver add-dms <world> <dimension>...")
 	}
 
-	for _, v := range arg {
+	for _, v := range subCmdArgs[1:] {
+		_, ok := config.Dimension[v]
+		if ok {
+			record.Warn(v + ":", "dimension existed, skip")
+			continue
+		}
 		config.Dimension[v] = defaultDimensionConfig
 	}
 
@@ -163,13 +170,19 @@ func addDms() {
 }
 
 func delDms() {
-	if len(arg) < 1 {
-		record.Error("syntax error, usage: mc-saver del-dms <dimension>...")
+	if len(subCmdArgs) < 2 {
+		record.Error("syntax error, usage: mc-saver del-dms <world> <dimension>...")
 	}
 
-	for _, v := range arg {
+	for _, v := range subCmdArgs[1:] {
+		_, ok := config.Dimension[v]
+		if !ok {
+			record.Warn(v + ":", "dimension not found, skip")
+			continue
+		}
 		delete(config.Dimension, v)
 	}
+
 	err := saveConfig()
 	if err != nil {
 		record.Error("save config:", err)
@@ -177,20 +190,20 @@ func delDms() {
 }
 
 func modDms() {
-	if len(arg) < 2 {
-		record.Error("syntax error, usage: mc-saver mod-dms <old_dimension> <dimension>")
+	if len(subCmdArgs) < 3 {
+		record.Error("syntax error, usage: mc-saver mod-dms <world> <old_dimension> <dimension>")
 	}
 
-	if _, ok := config.Dimension[arg[0]]; !ok {
-		record.Error(arg[1]+":", "dimension not found")
+	if _, ok := config.Dimension[subCmdArgs[1]]; !ok {
+		record.Error(subCmdArgs[1]+":", "dimension not found")
 	}
 
-	if arg[0] == arg[1] {
+	if subCmdArgs[1] == subCmdArgs[2] {
 		record.Error("dimension no change")
 	}
 
-	config.Dimension[arg[1]] = config.Dimension[arg[0]]
-	delete(config.Dimension, arg[0])
+	config.Dimension[subCmdArgs[2]] = config.Dimension[subCmdArgs[1]]
+	delete(config.Dimension, subCmdArgs[1])
 
 	err := saveConfig()
 	if err != nil {
@@ -199,16 +212,18 @@ func modDms() {
 }
 
 func listConfig() {
-	if len(arg) < 1 {
-		record.Error("syntax error, usage: mc-saver list-config <dimension>...")
+	if len(subCmdArgs) < 2 {
+		record.Error("syntax error, usage: mc-saver list-config <world> <dimension>...")
 	}
-	fmt.Printf("range config for %v:\n", arg)
 	listRange()
-	fmt.Printf("simple config for %v:\n", arg)
 	listSimple()
 }
 
 func list() {
+	if len(subCmdArgs) < 1 {
+		record.Error("syntax error, usage: mc-saver list-config <world> <dimension>...")
+	}
+
 	if len(config.Dimension) == 0 {
 		fmt.Println("no dimension config at all")
 	}

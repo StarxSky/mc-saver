@@ -1,9 +1,10 @@
 package main
 
 import (
-	"acovia.net/record"
 	"fmt"
 	"strconv"
+
+	"acovia.net/record"
 )
 
 func listFile() {
@@ -17,11 +18,11 @@ func listFile() {
 }
 
 func addFile() {
-	if len(arg) < 1 {
-		record.Error("syntax error, usage: mc-saver add-file <file_name>...")
+	if len(args) < 3 {
+		record.Error("syntax error, usage: mc-saver add-file <world> <file_name>...")
 	}
 
-	config.File = append(config.File, arg...)
+	config.File = append(config.File, subCmdArgs[1:]...)
 
 	err := saveConfig()
 	if err != nil {
@@ -30,12 +31,11 @@ func addFile() {
 }
 
 func delFile() {
-
-	if len(arg) < 1 {
-		record.Error("syntax error, usage: mc-saver del-file <number>...")
+	if len(args) < 3 {
+		record.Error("syntax error, usage: mc-saver del-file <world> <number>...")
 	}
 
-	indexSet, err := convertIntArray(arg)
+	indexSet, err := convertIntArray(subCmdArgs[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -52,20 +52,20 @@ func delFile() {
 }
 
 func modFile() {
-	if len(arg) < 2 {
-		record.Error("syntax error, usage: mc-saver mod-file <number> <file_name>")
+	if len(args) < 4 {
+		record.Error("syntax error, usage: mc-saver mod-file <world> <number> <file_name>")
 	}
 
-	number, err := strconv.ParseInt(arg[0], 10, 64)
+	index, err := strconv.ParseInt(subCmdArgs[1], 10, 64)
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
 
-	if number < 0 || int(number) >= len(config.File) {
-		record.Error("index out of range:", number)
+	if index < 0 || int(index) >= len(config.File) {
+		record.Error("index out of range:", index)
 	}
 
-	config.File[number] = arg[1]
+	config.File[index] = subCmdArgs[2]
 
 	err = saveConfig()
 	if err != nil {

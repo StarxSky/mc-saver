@@ -1,21 +1,23 @@
 package main
 
 import (
-	"acovia.net/minecraft/save"
 	"fmt"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 	"time"
+
+	"acovia.net/minecraft/save"
 )
 
 var (
-	arg            []string
-	cmd string
+	args           []string
+	cmd            string
 	config         save.Config = save.NullConfig
 	configFilePath string
 	argConfigPath  string
+	subCmdArgs     []string
 
 	useLegacyMode  bool   = false
 	worldDirPath   string = "world"
@@ -23,7 +25,7 @@ var (
 	outputPath     string = "."
 
 	cmdMap map[string]func() = map[string]func(){
-		"save":         saveWorld,
+		"save":        saveWorld,
 		"gencfg":      gencfg,
 		"help":        help,
 		"list":        list,
@@ -266,9 +268,17 @@ func convertIntArray(array []string) ([]int, error) {
 	return intList, nil
 }
 
-func configPath() string {
+func initConfigFilePath() {
 	if len(argConfigPath) == 0 {
-		return path.Join(worldDirPath, configFileName)
+		configFilePath = path.Join(worldDirPath, configFileName)
+		return
 	}
-	return argConfigPath
+	configFilePath = argConfigPath
+}
+
+func initWorldDirPath() {
+	if len(args) > 1 {
+		subCmdArgs = args[1:]
+		worldDirPath = subCmdArgs[0]
+	}
 }

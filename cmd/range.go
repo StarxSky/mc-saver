@@ -1,27 +1,31 @@
 package main
 
 import (
+	"fmt"
+
 	"acovia.net/minecraft/save"
 	"acovia.net/record"
-	"fmt"
 )
 
 func listRange() {
-	if len(arg) < 1 {
-		record.Error("syntax error, usage: mc-saver list-range <dimension>...")
+	if len(args) < 3 {
+		record.Error("syntax error, usage: mc-saver list-range <world> <dimension>...")
 	}
+	subCmdArgs = args[1:]
+	worldDirPath = subCmdArgs[0]
 
-	_, ok := config.Dimension[arg[0]]
+	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(arg[0]+":", "dimension not found")
+		record.Error(subCmdArgs[1]+":", "dimension not found")
 	}
 
-	for _, id := range arg {
+	for _, id := range subCmdArgs[1:] {
 		rangeConfig := config.Dimension[id].Range
 		if len(rangeConfig) == 0 {
 			fmt.Printf("no range config for %v\n", id)
 			continue
 		}
+		fmt.Printf("range config for %v:\n", id)
 		for i, v := range rangeConfig {
 			fmt.Printf("- %v: from: (%v, %v) to: (%v, %v)\n", i, v.From.X, v.From.Y, v.To.X, v.To.Y)
 		}
@@ -29,29 +33,32 @@ func listRange() {
 }
 
 func addRange() {
-	if len(arg) < 5 {
-		record.Error("syntax error, usage: mc-saver add-range <dimension> <from_x> <from_y> <to_x> <to_y>")
+	if len(args) < 7 {
+		record.Error("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	numberList, err := convertIntArray(arg[1:])
+	subCmdArgs = args[1:]
+	worldDirPath = subCmdArgs[0]
+
+	indexSet, err := convertIntArray(subCmdArgs[1:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
 
 	newRangeConfig := save.RangeConfig{
 		From: save.Coordinate{
-			X: numberList[0],
-			Y: numberList[1],
+			X: indexSet[0],
+			Y: indexSet[1],
 		},
 		To: save.Coordinate{
-			X: numberList[2],
-			Y: numberList[3],
+			X: indexSet[2],
+			Y: indexSet[3],
 		},
 	}
 
-	dimension, _ := config.Dimension[arg[0]]
+	dimension, _ := config.Dimension[subCmdArgs[1]]
 	dimension.Range = append(dimension.Range, newRangeConfig)
-	config.Dimension[arg[0]] = dimension
+	config.Dimension[subCmdArgs[1]] = dimension
 
 	err = saveConfig()
 	if err != nil {
@@ -60,28 +67,30 @@ func addRange() {
 }
 
 func delRange() {
-
-	if len(arg) < 2 {
-		record.Error("syntax error, usage: mc-saver del-range <dimension> <number>...")
+	if len(args) < 3 {
+		record.Error("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
 	}
 
-	_, ok := config.Dimension[arg[0]]
+	subCmdArgs = args[1:]
+	worldDirPath = subCmdArgs[0]
+
+	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(arg[0]+":", "dimension not found")
+		record.Error(subCmdArgs[1]+":", "dimension not found")
 	}
 
-	delList, err := convertIntArray(arg[1:])
+	delList, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
 
-	dimension, _ := config.Dimension[arg[0]]
+	dimension, _ := config.Dimension[subCmdArgs[1]]
 	dimension.Range, err = deleteSliceElements(dimension.Range, delList...)
 	if err != nil {
 		record.Error("delete element:", err)
 	}
 
-	config.Dimension[arg[0]] = dimension
+	config.Dimension[subCmdArgs[1]] = dimension
 
 	err = saveConfig()
 	if err != nil {
@@ -90,32 +99,35 @@ func delRange() {
 }
 
 func modRange() {
-	if len(arg) < 6 {
-		record.Error("syntax error, usage: mc-saver mod-range <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
+	if len(args) < 7 {
+		record.Error("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	_, ok := config.Dimension[arg[0]]
+	subCmdArgs = args[1:]
+	worldDirPath = subCmdArgs[0]
+
+	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
-		record.Error(arg[0]+":", "dimension not found")
+		record.Error(subCmdArgs[1]+":", "dimension not found")
 	}
 
-	numberList, err := convertIntArray(arg[1:])
+	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
 
-	if numberList[0] < 0 || numberList[0] >= len(config.Dimension[arg[0]].Range) {
-		record.Error("number out of range:", numberList[0])
+	if indexSet[0] < 0 || indexSet[0] >= len(config.Dimension[subCmdArgs[1]].Range) {
+		record.Error("number out of range:", indexSet[0])
 	}
 
-	config.Dimension[arg[0]].Range[numberList[0]] = save.RangeConfig{
+	config.Dimension[subCmdArgs[1]].Range[indexSet[0]] = save.RangeConfig{
 		From: save.Coordinate{
-			X: numberList[1],
-			Y: numberList[2],
+			X: indexSet[1],
+			Y: indexSet[2],
 		},
 		To: save.Coordinate{
-			X: numberList[3],
-			Y: numberList[4],
+			X: indexSet[3],
+			Y: indexSet[4],
 		},
 	}
 
