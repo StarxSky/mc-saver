@@ -6,8 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 
 	"acovia.net/minecraft/save"
@@ -23,6 +21,7 @@ func main() {
 		record.Error(errors.New("'" + cmd + "' command not found"))
 	}
 
+	subCmdArgs = loadSubCmdArgs()
 	function()
 }
 
@@ -31,12 +30,14 @@ func help() {
 }
 
 func initProgram() {
-	flag.StringVar(&argConfigPath, "c", argConfigPath, "config file path")
 	flag.BoolFunc("l", "legacy world mode", func(s string) error {
 		useLegacyMode = true
 		return nil
 	})
-	flag.BoolVar(&record.EnableColor, "color", false, "enable color output")
+	flag.BoolFunc("color", "enable color output", func(s string) error {
+		record.EnableColor = true
+		return nil
+	})
 	flag.Parse()
 	args = flag.Args()
 
@@ -45,33 +46,13 @@ func initProgram() {
 	}
 
 	cmd = args[0]
-
-	subCmdArgs = loadSubCmdArgs()
-	configFilePath = loadConfigFilePath()
-
-	initConfig()
 }
 
 func initConfig() {
 	var err error
-	if ok, _ := noInitConfigCmd[cmd]; ok {
-		return
-	}
-
 	config, err = save.LoadConfig(configFilePath)
 	if err != nil {
 		record.Error("load config:", err)
-	}
-
-	_, err = os.Stat(configFilePath)
-	if !os.IsNotExist(err) {
-		return
-	}
-	
-	record.Info("config file:", configFilePath, "not found, generate a empty config file")
-	err = saveConfig()
-	if err != nil {
-		record.Error("save config:", err)
 	}
 }
 
@@ -111,18 +92,14 @@ func gencfg() {
 	os.Exit(0)
 }
 
-func saveWorld() {
+func run() {
 	var err error
-
-	absPath, err := filepath.Abs(worldDirPath)
-	if err != nil {
-		record.Error("load abs path:", err)
+	if len(subCmdArgs) < 1 {
+		record.Error("syntax error, usage: mc-saver rub <world> [output]")
 	}
 
-	worldDirPath = absPath
-
-	if len(subCmdArgs) >= 3 {
-		outputPath = path.Clean(subCmdArgs[2])
+	if len(subCmdArgs) > 1 {
+		outputPath = subCmdArgs[1]
 	}
 
 	worldDirPath = strings.ReplaceAll(worldDirPath, "\\", "/")
@@ -138,6 +115,7 @@ func saveWorld() {
 		record.Error("init zip writer:", err)
 	}
 
+	initConfig()
 	if useLegacyMode {
 		if err := save.SaveOldAllFile(root, config, zipWriter, saveFile); err != nil {
 			if err := end(err); err != nil {
@@ -162,6 +140,7 @@ func addDms() {
 		record.Error("syntax error, usage: mc-saver add-dms <world> <dimension>...")
 	}
 
+	initConfig()
 	for _, v := range subCmdArgs[1:] {
 		_, ok := config.Dimension[v]
 		if ok {
@@ -182,6 +161,7 @@ func delDms() {
 		record.Error("syntax error, usage: mc-saver del-dms <world> <dimension>...")
 	}
 
+	initConfig()
 	for _, v := range subCmdArgs[1:] {
 		_, ok := config.Dimension[v]
 		if !ok {
@@ -202,6 +182,7 @@ func modDms() {
 		record.Error("syntax error, usage: mc-saver mod-dms <world> <old_dimension> <dimension>")
 	}
 
+	initConfig()
 	if _, ok := config.Dimension[subCmdArgs[1]]; !ok {
 		record.Error(subCmdArgs[1]+":", "dimension not found")
 	}
@@ -232,6 +213,7 @@ func list() {
 		record.Error("syntax error, usage: mc-saver list-config <world> <dimension>...")
 	}
 
+	initConfig()
 	if len(config.Dimension) == 0 {
 		fmt.Println("no dimension config at all")
 	}
@@ -259,6 +241,7 @@ func list() {
 }
 
 func listDms() {
+	initConfig()
 	for id := range config.Dimension {
 		fmt.Printf("- %v\n", id)
 	}

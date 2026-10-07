@@ -8,6 +8,11 @@ import (
 )
 
 func listFile() {
+	if len(subCmdArgs) < 1 {
+		record.Error("syntax error, usage: mc-saver list-file <world>")
+	}
+
+	initConfig()
 	if len(config.File) == 0 {
 		fmt.Println("no file config")
 	}
@@ -18,10 +23,11 @@ func listFile() {
 }
 
 func addFile() {
-	if len(args) < 3 {
+	if len(subCmdArgs) < 2 {
 		record.Error("syntax error, usage: mc-saver add-file <world> <file_name>...")
 	}
 
+	initConfig()
 	config.File = append(config.File, subCmdArgs[1:]...)
 
 	err := saveConfig()
@@ -31,7 +37,7 @@ func addFile() {
 }
 
 func delFile() {
-	if len(args) < 3 {
+	if len(subCmdArgs) < 2 {
 		record.Error("syntax error, usage: mc-saver del-file <world> <number>...")
 	}
 
@@ -52,11 +58,11 @@ func delFile() {
 }
 
 func modFile() {
-	if len(args) < 4 {
+	if len(subCmdArgs) < 3 {
 		record.Error("syntax error, usage: mc-saver mod-file <world> <number> <file_name>")
 	}
 
-	index, err := strconv.ParseInt(subCmdArgs[1], 10, 64)
+	index, err := strconv.ParseInt(subCmdArgs[1], 10, 32)
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}

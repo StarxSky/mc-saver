@@ -8,11 +8,9 @@ import (
 )
 
 func listRange() {
-	if len(args) < 3 {
+	if len(subCmdArgs) < 2 {
 		record.Error("syntax error, usage: mc-saver list-range <world> <dimension>...")
 	}
-	subCmdArgs = args[1:]
-	worldDirPath = subCmdArgs[0]
 
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
@@ -33,14 +31,11 @@ func listRange() {
 }
 
 func addRange() {
-	if len(args) < 7 {
+	if len(subCmdArgs) < 6 {
 		record.Error("syntax error, usage: mc-saver add-range <world> <dimension> <from_x> <from_y> <to_x> <to_y>")
 	}
 
-	subCmdArgs = args[1:]
-	worldDirPath = subCmdArgs[0]
-
-	indexSet, err := convertIntArray(subCmdArgs[1:])
+	indexSet, err := convertIntArray(subCmdArgs[2:])
 	if err != nil {
 		record.Error("parse command line args:", err)
 	}
@@ -67,12 +62,9 @@ func addRange() {
 }
 
 func delRange() {
-	if len(args) < 3 {
+	if len(subCmdArgs) < 3 {
 		record.Error("syntax error, usage: mc-saver del-range <world> <dimension> <number>...")
 	}
-
-	subCmdArgs = args[1:]
-	worldDirPath = subCmdArgs[0]
 
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {
@@ -99,12 +91,9 @@ func delRange() {
 }
 
 func modRange() {
-	if len(args) < 7 {
+	if len(subCmdArgs) < 7 {
 		record.Error("syntax error, usage: mc-saver mod-range <world> <dimension> <number> <from_x> <from_y> <to_x> <to_y>")
 	}
-
-	subCmdArgs = args[1:]
-	worldDirPath = subCmdArgs[0]
 
 	_, ok := config.Dimension[subCmdArgs[1]]
 	if !ok {

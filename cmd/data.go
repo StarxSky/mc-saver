@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ var (
 	outputPath     string = "."
 
 	cmdMap map[string]func() = map[string]func(){
-		"save":        saveWorld,
+		"run":         run,
 		"gencfg":      gencfg,
 		"help":        help,
 		"list":        list,
@@ -46,11 +47,6 @@ var (
 		"add-file":    addFile,
 		"del-file":    delFile,
 		"mod-file":    modFile,
-	}
-
-	noInitConfigCmd map[string]bool = map[string]bool{
-		"help":   true,
-		"gencfg": true,
 	}
 
 	root *os.Root
@@ -171,6 +167,13 @@ options:
 
 func formatOutPutPath(archiveFilePath string) (string, error) {
 
+	worldAbsPath, err := filepath.Abs(archiveFilePath)
+	if err != nil {
+		return "", fmt.Errorf("load absolute path: %w", err)
+	}
+
+	worldDirName := path.Base(worldAbsPath)
+
 	outputFileInfo, err := os.Stat(outputPath)
 	switch true {
 
@@ -185,7 +188,7 @@ func formatOutPutPath(archiveFilePath string) (string, error) {
 		return "", fmt.Errorf("read file info: %v", err)
 
 	case outputFileInfo.IsDir():
-		archiveFileName := path.Base(worldDirPath) + "-" + time.Now().Format(time.DateOnly) + ".zip"
+		archiveFileName := worldDirName + "-" + time.Now().Format(time.DateOnly) + ".zip"
 		archiveFilePath = path.Join(outputPath, archiveFileName)
 		archiveFilePath, err = addSubfixBeforeExt(archiveFilePath)
 		if err != nil {
