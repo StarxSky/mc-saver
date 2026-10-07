@@ -268,17 +268,16 @@ func convertIntArray(array []string) ([]int, error) {
 	return intList, nil
 }
 
-func initConfigFilePath() {
+func loadConfigFilePath() string {
 	if len(argConfigPath) == 0 {
-		configFilePath = path.Join(worldDirPath, configFileName)
-		return
+		return path.Join(worldDirPath, configFileName)
 	}
-	configFilePath = argConfigPath
+	return argConfigPath
 }
 
-func initWorldDirPath() {
+func loadSubCmdArgs() []string {
 	if len(args) > 1 {
-		subCmdArgs = args[1:]
-		worldDirPath = subCmdArgs[0]
+		return args[1:]
 	}
+	return nil
 }

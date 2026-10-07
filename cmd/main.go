@@ -46,24 +46,32 @@ func initProgram() {
 
 	cmd = args[0]
 
-	initWorldDirPath()
-	initConfigFilePath()
+	subCmdArgs = loadSubCmdArgs()
+	configFilePath = loadConfigFilePath()
+
 	initConfig()
 }
 
 func initConfig() {
-	if ok, _ := noInitConfigCmd[cmd]; !ok {
-		var err error
-		config, err = save.LoadConfig(configFilePath)
-		if os.IsNotExist(err) {
-			record.Info("config file:", configFilePath, "not found, generate a empty config file")
-			err := saveConfig()
-			if err != nil {
-				record.Error("save config:", err)
-			}
-		} else if err != nil {
-			record.Error("load config:", err)
-		}
+	var err error
+	if ok, _ := noInitConfigCmd[cmd]; ok {
+		return
+	}
+
+	config, err = save.LoadConfig(configFilePath)
+	if err != nil {
+		record.Error("load config:", err)
+	}
+
+	_, err = os.Stat(configFilePath)
+	if !os.IsNotExist(err) {
+		return
+	}
+	
+	record.Info("config file:", configFilePath, "not found, generate a empty config file")
+	err = saveConfig()
+	if err != nil {
+		record.Error("save config:", err)
 	}
 }
 
@@ -157,7 +165,7 @@ func addDms() {
 	for _, v := range subCmdArgs[1:] {
 		_, ok := config.Dimension[v]
 		if ok {
-			record.Warn(v + ":", "dimension existed, skip")
+			record.Warn(v+":", "dimension existed, skip")
 			continue
 		}
 		config.Dimension[v] = defaultDimensionConfig
@@ -177,7 +185,7 @@ func delDms() {
 	for _, v := range subCmdArgs[1:] {
 		_, ok := config.Dimension[v]
 		if !ok {
-			record.Warn(v + ":", "dimension not found, skip")
+			record.Warn(v+":", "dimension not found, skip")
 			continue
 		}
 		delete(config.Dimension, v)

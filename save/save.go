@@ -228,13 +228,13 @@ func LoadConfig(configFilePath string) (Config, error) {
 
 	jsonData, err := os.ReadFile(configFilePath)
 	if err != nil {
-		return NullConfig, err // fmt.Errorf("open config file: %v", err)
+		return NullConfig, fmt.Errorf("open config file: %v", err)
 	}
 
 	var config Config
 	err = json.Unmarshal(jsonData, &config)
 	if err != nil {
-		return NullConfig, err // fmt.Errorf("decode json data: %v", err)
+		return NullConfig, fmt.Errorf("decode json data: %v", err)
 	}
 
 	if config.Dimension == nil {
