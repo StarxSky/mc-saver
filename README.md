@@ -16,7 +16,7 @@ Download a prebuilt binary from the [Releases](https://github.com/fovlin/mc-save
 ## Usage
 
 ```
-mc-saver [-l] [-color] <command> <world> [args...]
+mc-saver [-l] [-color] [command] <world> [args...]
 ```
 
 Every command takes the world directory as its first argument; the rule file is read from `<world>/saver.json`. Flags, if any, go before the command.
