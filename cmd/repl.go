@@ -40,7 +40,7 @@ func repl() {
 		line := strings.TrimSpace(scanner.Text()) // remove the space char. 
 		if line == "" {
 			continue
-		}else if line == "exit" || line == "q" {
+		}else if line == "exit" || line == "quit" {
 			break
 		}else if line == "help" {
 			printHelper()
@@ -60,7 +60,7 @@ func repl() {
 
 	}
 	// Error Check 
-	
+
 	if err := scanner.Err() ; err != nil {
 		log.Printf("scanner error: %v", err)
 	}
