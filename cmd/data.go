@@ -24,29 +24,8 @@ var (
 	configFileName string = "saver.json"
 	outputPath     string = "."
 
-	cmdMap map[string]func() = map[string]func(){
-		"run":         run,
-		"gencfg":      gencfg,
-		"help":        help,
-		"list":        list,
-		"list-config": listConfig,
-		"list-dms":    listDms,
-		"add-dms":     addDms,
-		"del-dms":     delDms,
-		"mod-dms":     modDms,
-		"list-range":  listRange,
-		"add-range":   addRange,
-		"del-range":   delRange,
-		"mod-range":   modRange,
-		"list-simple": listSimple,
-		"add-simple":  addSimple,
-		"del-simple":  delSimple,
-		"mod-simple":  modSimple,
-		"list-file":   listFile,
-		"add-file":    addFile,
-		"del-file":    delFile,
-		"mod-file":    modFile,
-	}
+	// Declare the commandMapping Func : 
+	cmdMap map[string] func() 
 
 	root *os.Root
 
@@ -78,8 +57,40 @@ var (
 			"players",
 		},
 	}
+)
 
-	helpInfo = `mc-saver [-l] [-color] <command> <world> [args...]
+
+// cmdMapping func init : 
+func init() {
+	cmdMap = map[string]func(){
+		"run":         run,
+		"gencfg":      gencfg,
+		"help":        help,
+		"list":        list,
+		"list-config": listConfig,
+		"list-dms":    listDms,
+		"add-dms":     addDms,
+		"del-dms":     delDms,
+		"mod-dms":     modDms,
+		"list-range":  listRange,
+		"add-range":   addRange,
+		"del-range":   delRange,
+		"mod-range":   modRange,
+		"list-simple": listSimple,
+		"add-simple":  addSimple,
+		"del-simple":  delSimple,
+		"mod-simple":  modSimple,
+		"list-file":   listFile,
+		"add-file":    addFile,
+		"del-file":    delFile,
+		"mod-file":    modFile,
+		"repl": repl,
+		"about": about,
+	}
+}
+
+
+var helpInfo = `mc-saver [-l] [-color] <command> <world> [args...]
 
 every command takes the world directory as its first argument, and the rule
 file is read from <world>/saver.json. run "gencfg <world>" first to create it.
@@ -93,6 +104,9 @@ backup command:
 	gencfg <world>
 		write the default rule file to <world>/saver.json.
 		throw error if the file is already existed.
+
+	repl <world>
+		enter interactive repl mode for <world>.
 
 	help
 		print this help text.
@@ -164,7 +178,8 @@ options:
 	-color
 		enable color output.
 `
-)
+
+
 
 func formatOutputPath(archiveFilePath string) (string, error) {
 
