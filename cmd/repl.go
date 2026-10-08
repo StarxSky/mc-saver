@@ -60,6 +60,7 @@ func repl() {
 
 	}
 	// Error Check 
+	
 	if err := scanner.Err() ; err != nil {
 		log.Printf("scanner error: %v", err)
 	}
