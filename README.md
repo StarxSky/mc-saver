@@ -8,6 +8,7 @@ A Minecraft world backup tool written in Go. It reads a JSON rule file and packs
 - **Per-dimension rules** — the overworld, the Nether, the End, and any custom dimension.
 - **Two ways to pick regions** — `range` rectangles, or `simple` for individual regions.
 - **Config managed from the command line** — add, modify, delete and list dimensions, rules and files without hand-editing JSON.
+- **Repl Mode for easy using** - `repl` Start once, enter the command continuously, and enter the world path only once.
 
 ## Install
 
@@ -29,6 +30,57 @@ mc-saver -l run /srv/minecraft/old-world out.zip   # legacy worlds (before 1.21.
 ```
 
 The rule file must exist before any command other than `gencfg` and `help`; create it with `gencfg`.
+### New Feature （The `repl` mode）
+Now we have updated the repl mode for easy using. In this mode, users only need to enter the world path once to continuously input commands, which greatly reduces the annoyance of command errors caused by frequent CLI command input. below is how to use `repl` to execute your commands : 
+
+- The format for `repl`mode : 
+```zsh 
+mc-saver repl </path/to/world>
+```
+- Example :
+
+```bash 
+# Enter Repl mode 
+root@mc-saver ~$ ./mc-saver repl /tmp/testworld 
+
+[2026-10-08 12:51:28 INFO]: ==== MC-SAVER Repl Mode ====
+[2026-10-08 12:51:28 INFO]: Enter repl mode for /tmp/testworld
+[2026-10-08 12:51:28 INFO]: Type 'help' for commands, 'exit' or 'quit' to quit repl mode 
+mc-saver >
+```
+In above example, you can type any [commands](##Commands) when the `mc-saver >` appear.
+
+If you wanna more information about how to use `repl` please check the `help` menu by below command :
+
+```bash 
+mc-saver > help
+repl commands (world argument is implicit):
+  list                 - list all dimension rules and file rules
+  list-config <dimension>...  - list range and simple rules of dimension(s)
+  list-dms             - list dimension namespace ids
+  add-dms <dimension>...      - add dimension(s) with default range rule
+  del-dms <dimension>...      - delete dimension(s)
+  mod-dms <old> <new>         - rename a dimension
+  list-range <dimension>...   - list range rules of dimension(s)
+  add-range <dimension> <from_x> <from_y> <to_x> <to_y>  - add range rule
+  del-range <dimension> <index>...  - delete range rule(s) by index
+  mod-range <dimension> <index> <from_x> <from_y> <to_x> <to_y>  - modify range rule
+  list-simple <dimension>...  - list simple rules of dimension(s)
+  add-simple <dimension> <x> <y>  - add simple rule
+  del-simple <dimension> <index>...  - delete simple rule(s) by index
+  mod-simple <dimension> <index> <x> <y>  - modify simple rule
+  list-file            - list file rules
+  add-file <name>...   - add file rule(s)
+  del-file <index>...  - delete file rule(s) by index
+  mod-file <index> <name>  - modify file rule
+  help                 - show this help
+  exit / quit          - leave repl mode
+mc-saver > 
+
+```
+
+
+
 
 ### Commands
 
